@@ -1,0 +1,46 @@
+@startuml
+skinparam sequence {
+ArrowColor black
+LifeLineBorderColor black
+LifeLineBackgroundColor khaki
+
+ParticipantBackgroundColor lightgoldenrodyellow
+}
+
+participant "乘客" as 乘客
+participant "capi" as capi
+participant "广告" as 广告
+participant "红包" as 红包
+participant "活动" as 活动
+participant "UPS" as UPS #lightgreen
+
+activate 乘客
+乘客 -> capi
+activate capi
+capi -> 广告
+activate 广告
+广告 -> 红包
+activate 红包
+红包 -> 活动 : 天降
+activate 活动
+活动 -> UPS : 查询常驻城市
+activate UPS
+UPS --> 活动 : 常驻城市
+deactivate UPS
+活动 -> 活动 : 判断是否异地登陆注券\n（若取不到常驻城市，默认不命中）
+活动 -> 红包 : 模板id请求券
+红包 --> 活动 : 券id
+活动 --> 红包 : 券id
+deactivate 活动
+红包 --> 广告 : 券id
+deactivate 红包
+广告 --> capi : 券id
+deactivate 广告
+capi -> 活动 : 券id
+activate 活动
+活动 --> capi : 券信息
+deactivate 活动
+capi --> 乘客 : 券
+deactivate capi
+deactivate 乘客
+@enduml

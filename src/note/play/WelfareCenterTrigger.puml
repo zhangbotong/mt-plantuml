@@ -1,0 +1,41 @@
+@startuml
+skinparam sequence {
+ArrowColor black
+LifeLineBorderColor black
+LifeLineBackgroundColor khaki
+
+ParticipantBackgroundColor lightgoldenrodyellow
+}
+
+participant "前端" as 前端
+participant "capi" as capi
+participant "广告" as 广告
+participant "营销聚合页面" as 营销聚合页面
+participant "各组件" as 各组件
+
+activate 前端
+前端 -> capi : 进入页面
+activate capi
+capi -> 广告
+activate 广告
+广告 -> 广告 : 校验参数
+广告 -> 广告 : 链式过滤，命中营销聚合页面
+广告 --> capi : 返回数据
+deactivate 广告
+capi -> 前端 : 返回数据
+deactivate capi
+前端 -> 营销聚合页面 : 请求落地页
+activate 营销聚合页面
+营销聚合页面 -> 营销聚合页面 : 校验参数：\n1、request不为空，否则返回失败并提示\n2、以下返回失败并提示：cityId < 0 | userId < 0 | entranceType == null
+营销聚合页面 -> 营销聚合页面 : request convert to requestVO
+营销聚合页面 -> 营销聚合页面 : 链式过滤：城市、日期、人群
+营销聚合页面 -> 营销聚合页面 : 命中多个按优先级最高、创建时间最近排序取第一个
+营销聚合页面 -> 各组件 : 逐个查询所有组件，若有失败则触发兜底页逻辑
+activate 各组件
+各组件 --> 营销聚合页面 : 返回命中结果
+deactivate 各组件
+营销聚合页面 --> 前端 : 返回页面及各组件内命中结果
+deactivate 营销聚合页面
+deactivate capi
+deactivate 前端
+@enduml

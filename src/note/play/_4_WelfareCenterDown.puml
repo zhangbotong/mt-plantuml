@@ -1,0 +1,22 @@
+@startuml
+skinparam sequence {
+ArrowColor black
+LifeLineBorderColor black
+LifeLineBackgroundColor khaki
+
+ParticipantBackgroundColor lightgoldenrodyellow
+}
+
+participant "前端" as 前端
+participant "营销聚合页面" as 营销聚合页面
+
+activate 前端
+前端 -> 营销聚合页面 : 下架
+activate 营销聚合页面
+营销聚合页面 -> 营销聚合页面 : 校验：\n1、校验 request、操作人id 不为空，否则返回失败并提示；\n2、营销聚合页面id有效（大于0），否则返回失败并提示；\n3、权限校验：系统操作跳过审核；lion配置开启/关闭审核；创建人、lion白名单、auth鉴权通过可以下架，否则返回失败并提示无权限\n4、根据id查询营销聚合页面不为空，否则返回失败并提示；\n5、幂等操作：若为【已下架】，则返回成功；\n6、状态机判定：只有【待生效】、【生效中】可下架，否则返回失败并提示
+营销聚合页面 -> 营销聚合页面 : 更新营销聚合页面数据：updateMisId, utime, status
+营销聚合页面 -> 营销聚合页面 : 发送大象消息（lion配置固定人+createdMisId+updateMisId）
+营销聚合页面 --> 前端 : 返回下架结果
+deactivate 营销聚合页面
+deactivate 前端
+@enduml

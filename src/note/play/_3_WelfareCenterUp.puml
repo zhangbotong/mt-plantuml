@@ -1,0 +1,28 @@
+@startuml
+skinparam sequence {
+ArrowColor black
+LifeLineBorderColor black
+LifeLineBackgroundColor khaki
+
+ParticipantBackgroundColor lightgoldenrodyellow
+}
+
+participant "前端" as 前端
+participant "营销聚合页面" as 营销聚合页面
+participant "bpm" as bpm
+
+
+activate 前端
+前端 -> 营销聚合页面 : 上架
+activate 营销聚合页面
+营销聚合页面 -> 营销聚合页面 : 校验：\n1、request、操作人id 不为空，且id>0，否则返回失败并提示；\n2、校验数据存在，否则返回失败并提示；\n3、权限校验：只能上架自己创建的页面，否则返回失败并提示；\n4、幂等校验：当前状态为【审批中】、【待生效】、【生效中】直接返回成功\n5、状态校验：当前状态不为【已下架】，直接返回失败并提示
+营销聚合页面 -> bpm : 开启审批流
+activate bpm
+bpm --> 营销聚合页面 : 成功
+deactivate bpm
+营销聚合页面 -> 营销聚合页面 : 更新数据库：updateMisId, utime
+营销聚合页面 -> 营销聚合页面 : 发送大象消息（lion配置固定人+createdMisId+updateMisId）
+营销聚合页面 --> 前端 : 返回结果
+deactivate 营销聚合页面
+deactivate 前端
+@enduml

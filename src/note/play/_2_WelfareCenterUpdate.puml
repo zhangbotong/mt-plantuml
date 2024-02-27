@@ -1,0 +1,24 @@
+@startuml
+skinparam sequence {
+ArrowColor black
+LifeLineBorderColor black
+LifeLineBackgroundColor khaki
+
+ParticipantBackgroundColor lightgoldenrodyellow
+}
+
+participant "前端" as 前端
+participant "营销聚合页面" as 营销聚合页面
+
+activate 前端
+前端 -> 营销聚合页面 : 更新
+activate 营销聚合页面
+营销聚合页面 -> 营销聚合页面 : 根据id查询营销聚合页面，如果不存在则报错
+营销聚合页面 -> 营销聚合页面 : 字段校验：\n1、以下字段不为空：优先级、展示入口、活动城市、活动时间、生效天、名称、参与人群；\n2、每个魔方领券：关联idList不能为空；\n3、每个黑盒领券｜权益：关联渠道活动组id有且仅有一个；\n4、每个url跳转：关联stringList不为空。
+营销聚合页面 -> 营销聚合页面 : 权限校验：只有创建人能编辑；只有待提交/已驳回/已下架状态可以编辑
+营销聚合页面 -> 营销聚合页面 : 营销聚合页面表，根据 id 依次更新除 id,process_id, status, create_mis_id, ctime 之外的所有字段
+营销聚合页面 -> 营销聚合页面 : 组件表中，根据营销聚合页面 id 先删除原组件，再插入新组件，并关联营销聚合页面页面 id
+营销聚合页面 --> 前端 : 返回营销聚合页面id
+deactivate 营销聚合页面
+deactivate 前端
+@enduml

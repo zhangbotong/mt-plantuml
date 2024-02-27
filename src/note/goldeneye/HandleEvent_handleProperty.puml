@@ -1,0 +1,91 @@
+@startuml
+skinparam sequence {
+    ArrowColor black
+    LifeLineBorderColor black
+    LifeLineBackgroundColor khaki
+    ParticipantBackgroundColor lightgoldenrodyellow
+}
+
+activate HandleEvent
+HandleEvent -> BaseHandle : 1. triggerConditionProcess
+activate BaseHandle
+BaseHandle -> BaseHandle : 1.1. getRequiredCampaigns \n过滤：城市、EventName
+activate BaseHandle
+deactivate BaseHandle
+BaseHandle -> BaseHandle : 1.2. filterSteps \n 过滤：有效期、周几生效、生效时段如：7.00～8.00、\n EventName = step.initEventName、分流、\n 成本、频率、人群、隔离优先级、策略判断
+activate BaseHandle
+BaseHandle -> BaseHandle : 1.2.1 preHandle \n有效期、周几生效、生效时段如：7.00～8.00、\n EventName = step.initEventName、分流 step
+activate BaseHandle
+deactivate BaseHandle
+BaseHandle -> ReportService : 1.2.2 isPassLimit \n 过滤：成本、频率
+activate ReportService
+ReportService --> BaseHandle
+deactivate ReportService
+BaseHandle -> BaseHandle : 1.2.3 isPassGroupExp \n 过滤：人群
+activate BaseHandle
+deactivate BaseHandle
+BaseHandle -> BaseHandle : 1.2.4 isolationPK，隔离优先级
+activate BaseHandle
+deactivate BaseHandle
+BaseHandle -> BaseHandle : 1.2.5 strategyJudge，策略判断
+activate BaseHandle
+deactivate BaseHandle
+deactivate BaseHandle
+BaseHandle --> HandleEvent
+deactivate BaseHandle
+HandleEvent -> BaseHandle : 1.2 getFinishFields \n fields 填充 step.finishExpressionParams.eventName
+activate BaseHandle
+BaseHandle --> HandleEvent
+deactivate BaseHandle
+HandleEvent -> BaseHandle : 1.3 resolveCampaignNeedFeilds \n fields 填充 Event 的属性
+activate BaseHandle
+BaseHandle --> HandleEvent
+deactivate BaseHandle
+HandleEvent -> BaseHandle : 1.4 renderFields，填充属性的value（上文只填充 key）\n 含从 MQ 取值
+activate BaseHandle
+BaseHandle --> HandleEvent
+deactivate BaseHandle
+HandleEvent -> BaseHandle : 1.5 handleCampaignExp \n Event 属性表达式过滤
+activate BaseHandle
+BaseHandle --> HandleEvent
+deactivate BaseHandle
+HandleEvent -> BaseHandle : 1.6 handleCommonPropertyExp \n 公共属性处理
+activate BaseHandle
+BaseHandle --> HandleEvent
+deactivate BaseHandle
+HandleEvent -> BaseHandle : 1.7 pariorPK \n 优先级判断
+activate BaseHandle
+BaseHandle --> HandleEvent
+deactivate BaseHandle
+HandleEvent -> BaseHandle : 1.8 handleHitBlank \n 城市空白组处理
+activate BaseHandle
+BaseHandle --> HandleEvent
+deactivate BaseHandle
+HandleEvent -> HandleEvent : 1.9 getLatestStepIds \n 获取活动 id 最大的 steps
+activate HandleEvent
+deactivate HandleEvent
+HandleEvent -> HandleEvent : 1.10 DistinguishIfFlinkCampaignStep \n 分离需要 flink 与不需要 flink 的 steps
+activate HandleEvent
+deactivate HandleEvent
+HandleEvent -> HandleEvent : 1.11 processOneStepCampaignStep \n 处理无需 flink 的 steps
+activate HandleEvent
+deactivate HandleEvent
+HandleEvent -> HandleEvent : 1.12 filterOnlineKeepFirstCampaignStep \n 过滤 steps？
+activate HandleEvent
+deactivate HandleEvent
+HandleEvent -> HandleEvent : 1.13 processFinishSteps \n 处理 flink 的 steps
+activate HandleEvent
+HandleEvent -> HandleEvent : 1.13.1 sendFlinkEvent
+activate HandleEvent
+HandleEvent -> MafkaProducer : 1.13.1.1 sendMessage
+activate MafkaProducer
+deactivate MafkaProducer
+HandleEvent -> WbrCheckDelayProducerService : 1.13.1.2 produceWbrCheckEvent
+activate WbrCheckDelayProducerService
+WbrCheckDelayProducerService -> MafkaDelayProducer : sendDelayMessage
+activate MafkaDelayProducer
+deactivate MafkaDelayProducer
+deactivate WbrCheckDelayProducerService
+deactivate HandleEvent
+deactivate HandleEvent
+@enduml

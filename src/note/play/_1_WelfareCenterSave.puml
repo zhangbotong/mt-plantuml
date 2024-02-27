@@ -1,0 +1,25 @@
+@startuml
+skinparam sequence {
+ArrowColor black
+LifeLineBorderColor black
+LifeLineBackgroundColor khaki
+
+ParticipantBackgroundColor lightgoldenrodyellow
+}
+
+participant "前端" as 前端
+participant "营销聚合页面" as 营销聚合页面
+'查询等
+
+activate 前端
+前端 -> 营销聚合页面 : 保存或更新
+activate 营销聚合页面
+营销聚合页面 -> 营销聚合页面 : 校验：\n1、以下字段不为空：优先级、展示入口、活动城市、活动时间、生效天、名称、参与人群；\n2、每个魔方领券：关联idList不能为空；\n3、每个黑盒领券｜权益：关联渠道活动组id有且仅有一个；\n4、每个url跳转：关联stringList不为空
+营销聚合页面 -> 营销聚合页面 : 判断是新增还是更新（id）
+营销聚合页面 -> 营销聚合页面 : 准备PO数据：status=待提交，updateMisId=空，processId=空，人群信息转换
+营销聚合页面 -> 营销聚合页面 : 保存营销聚合页面表
+营销聚合页面 -> 营销聚合页面 : 保存组件表，并关联营销聚合页面
+营销聚合页面 --> 前端 : 返回营销聚合页面id
+deactivate 营销聚合页面
+deactivate 前端
+@enduml

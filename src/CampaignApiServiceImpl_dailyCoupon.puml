@@ -1,0 +1,159 @@
+@startuml
+skinparam sequence {
+ArrowColor black
+'LifeLineBorderColor black
+LifeLineBackgroundColor khaki
+
+ParticipantBackgroundColor lightgoldenrodyellow
+'ParticipantFontName Impact
+ParticipantFontSize 16
+}
+participant Actor
+Actor -> CampaignApiServiceImpl : dailyCoupon（被动天降）
+activate CampaignApiServiceImpl
+CampaignApiServiceImpl -> CampaignApiServiceImpl : isParamsValid（参数校验）
+activate CampaignApiServiceImpl
+CampaignApiServiceImpl --> CampaignApiServiceImpl
+deactivate CampaignApiServiceImpl
+CampaignApiServiceImpl -> LockService : lock（分布式锁,\ncatagory = GOLDENEYE_CAMPAIGN_LOCK,\nkey = DailyCouponEvent-userId,\nvalue = requestId）
+activate LockService
+LockService --> CampaignApiServiceImpl
+deactivate LockService
+CampaignApiServiceImpl -> DailyCouponEventService : eventHandle
+activate DailyCouponEventService
+DailyCouponEventService -> HandleSyncEvent : triggerConditionAction
+activate HandleSyncEvent
+HandleSyncEvent -> HandleSyncEvent : process
+activate HandleSyncEvent
+HandleSyncEvent -> BaseHandle : triggerConditionProcess
+activate BaseHandle
+BaseHandle -> BaseHandle : getRequiredCampaigns（城市活动与事件活动交集）
+activate BaseHandle
+BaseHandle --> BaseHandle
+deactivate BaseHandle
+BaseHandle -> BaseHandle : filterSteps
+activate BaseHandle
+BaseHandle -> BaseHandle : preHandle（过滤：时间、分流，得到 steps）
+activate BaseHandle
+BaseHandle --> BaseHandle
+deactivate BaseHandle
+BaseHandle -> ReportService : isPassLimit（过滤：成本、频次检测）
+activate ReportService
+ReportService --> BaseHandle
+deactivate ReportService
+BaseHandle -> BaseHandle : userTypeAndGroupIds
+activate BaseHandle
+BaseHandle --> BaseHandle
+deactivate BaseHandle
+BaseHandle -> BaseHandle : remoteGroupAndUserType
+activate BaseHandle
+BaseHandle --> BaseHandle
+deactivate BaseHandle
+BaseHandle -> BaseHandle : isPassGroupExp（判断人群、新老客命中）
+activate BaseHandle
+BaseHandle --> BaseHandle
+deactivate BaseHandle
+BaseHandle -> BaseHandle : isolationPK
+activate BaseHandle
+BaseHandle --> BaseHandle
+deactivate BaseHandle
+BaseHandle -> BaseHandle : strategyJudge
+activate BaseHandle
+BaseHandle --> BaseHandle
+deactivate BaseHandle
+BaseHandle --> BaseHandle
+deactivate BaseHandle
+BaseHandle --> HandleSyncEvent
+deactivate BaseHandle
+HandleSyncEvent -> BaseHandle : resolveCampaignNeedFeilds
+activate BaseHandle
+BaseHandle --> HandleSyncEvent
+deactivate BaseHandle
+HandleSyncEvent -> BaseHandle : handleCampaignExp（过滤：活动属性）
+activate BaseHandle
+BaseHandle -> AviatorUtil : exec
+activate AviatorUtil
+AviatorUtil --> BaseHandle
+deactivate AviatorUtil
+BaseHandle --> HandleSyncEvent
+deactivate BaseHandle
+HandleSyncEvent -> BaseHandle : handleCommonPropertyExp\n（过滤：公共属性，如：提单率、天气、异地登陆）
+activate BaseHandle
+BaseHandle -> BaseHandle : getFeatures
+activate BaseHandle
+BaseHandle -> FeatureBaseService : getCityRateOfPlatform
+activate FeatureBaseService
+FeatureBaseService --> BaseHandle
+deactivate FeatureBaseService
+BaseHandle -> FeatureBaseService : getCityResponseRateOfPartner
+activate FeatureBaseService
+FeatureBaseService --> BaseHandle
+deactivate FeatureBaseService
+BaseHandle -> WeatherBaseService : getCityWeather
+activate WeatherBaseService
+WeatherBaseService --> BaseHandle
+deactivate WeatherBaseService
+BaseHandle -> GeoBaseService : getAdCodeWithCompare
+activate GeoBaseService
+GeoBaseService --> BaseHandle
+deactivate GeoBaseService
+BaseHandle -> FeatureBaseService : getAdRateOfPlatform
+activate FeatureBaseService
+FeatureBaseService --> BaseHandle
+deactivate FeatureBaseService
+BaseHandle -> FeatureBaseService : getAdResponseRateOfPartner
+activate FeatureBaseService
+FeatureBaseService --> BaseHandle
+deactivate FeatureBaseService
+BaseHandle -> WeatherBaseService : getAdWeather
+activate WeatherBaseService
+WeatherBaseService --> BaseHandle
+deactivate WeatherBaseService
+BaseHandle --> BaseHandle
+deactivate BaseHandle
+BaseHandle -> BaseHandle : passCommonPropertyExp
+activate BaseHandle
+BaseHandle -> AviatorUtil : exec
+activate AviatorUtil
+AviatorUtil --> BaseHandle
+deactivate AviatorUtil
+BaseHandle --> BaseHandle
+deactivate BaseHandle
+BaseHandle --> HandleSyncEvent
+deactivate BaseHandle
+HandleSyncEvent -> BaseHandle : pariorPK
+activate BaseHandle
+BaseHandle --> HandleSyncEvent
+deactivate BaseHandle
+HandleSyncEvent -> BaseHandle : handleHitBlank（命中空白组处理）
+activate BaseHandle
+BaseHandle --> HandleSyncEvent
+deactivate BaseHandle
+HandleSyncEvent --> HandleSyncEvent
+deactivate HandleSyncEvent
+HandleSyncEvent -> HandleSyncEvent : handleActionDOs（过滤不重复发天降红包）
+activate HandleSyncEvent
+HandleSyncEvent -> CampaignActionProcessor : process
+activate CampaignActionProcessor
+CampaignActionProcessor --> HandleSyncEvent
+deactivate CampaignActionProcessor
+HandleSyncEvent --> HandleSyncEvent
+deactivate HandleSyncEvent
+HandleSyncEvent --> DailyCouponEventService
+deactivate HandleSyncEvent
+DailyCouponEventService --> CampaignApiServiceImpl
+deactivate DailyCouponEventService
+CampaignApiServiceImpl -> CampaignApiServiceImpl : handleResponse
+activate CampaignApiServiceImpl
+CampaignApiServiceImpl --> CampaignApiServiceImpl
+deactivate CampaignApiServiceImpl
+CampaignApiServiceImpl -> LockService : unLock
+activate LockService
+LockService --> CampaignApiServiceImpl
+deactivate LockService
+CampaignApiServiceImpl -> LockService : unLock
+activate LockService
+LockService --> CampaignApiServiceImpl
+deactivate LockService
+return
+@enduml

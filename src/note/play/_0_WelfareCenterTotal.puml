@@ -1,0 +1,21 @@
+@startuml
+skinparam sequence {
+ArrowColor black
+LifeLineBorderColor black
+LifeLineBackgroundColor khaki
+
+ParticipantBackgroundColor lightgoldenrodyellow
+}
+
+participant "前端" as 前端
+participant "福利中心" as 福利中心
+
+activate 前端
+前端 -> 福利中心 : 保存、更新、上/下线、查询、提交、撤回
+activate 福利中心
+福利中心 -> 福利中心 : 校验参数
+福利中心 -> 福利中心 : 关联组件并保存数据
+福利中心 --> 前端 : 返回结果
+deactivate 福利中心
+deactivate 前端
+@enduml

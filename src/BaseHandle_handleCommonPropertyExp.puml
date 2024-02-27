@@ -1,0 +1,61 @@
+@startuml
+skinparam sequence {
+ArrowColor black
+LifeLineBorderColor black
+LifeLineBackgroundColor khaki
+
+ParticipantBackgroundColor lightgoldenrodyellow
+'ParticipantFontName Impact
+}
+
+participant Actor
+Actor -> BaseHandle : handleCommonPropertyExp
+activate BaseHandle
+BaseHandle -> BaseHandle : getFeatures（获取 rateMap, weatherMap）
+activate BaseHandle
+BaseHandle -> FeatureBaseService : getCityRateOfPlatform（城市-提单率）
+activate FeatureBaseService
+FeatureBaseService --> BaseHandle
+deactivate FeatureBaseService
+BaseHandle -> FeatureBaseService : getCityResponseRateOfPartner（城市-奚仲-提单率）
+activate FeatureBaseService
+FeatureBaseService --> BaseHandle
+deactivate FeatureBaseService
+BaseHandle -> WeatherBaseService : getCityWeather（城市-天气）
+activate WeatherBaseService
+WeatherBaseService --> BaseHandle
+deactivate WeatherBaseService
+BaseHandle -> BaseHandle : renderFields（公共属性配置->被动天降配置->point属性->latitude|longitude）
+activate BaseHandle
+BaseHandle -> BaseHandle : getProperty
+activate BaseHandle
+BaseHandle -> BaseHandle : getPropertyFromMQ
+activate BaseHandle
+BaseHandle -> BaseHandle : handleRpcFields
+activate BaseHandle
+BaseHandle --> BaseHandle
+deactivate BaseHandle
+BaseHandle -> GeoBaseService : getAdCode（根据经纬度查询行政区编号）
+activate GeoBaseService
+GeoBaseService --> BaseHandle
+deactivate GeoBaseService
+BaseHandle -> FeatureBaseService : getAdRateOfPlatform（行政区-提单率）
+activate FeatureBaseService
+FeatureBaseService --> BaseHandle
+deactivate FeatureBaseService
+BaseHandle -> FeatureBaseService : getAdResponseRateOfPartner（行政区-奚仲-提单率）
+activate FeatureBaseService
+FeatureBaseService --> BaseHandle
+deactivate FeatureBaseService
+BaseHandle -> WeatherBaseService : getAdWeather（行政区-天气）
+activate WeatherBaseService
+WeatherBaseService --> BaseHandle
+deactivate WeatherBaseService
+BaseHandle --> BaseHandle
+deactivate BaseHandle
+BaseHandle -> BaseHandle : passCommonPropertyExp（表达式校验）
+activate BaseHandle
+BaseHandle --> BaseHandle
+deactivate BaseHandle
+return
+@enduml

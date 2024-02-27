@@ -1,0 +1,31 @@
+@startuml
+skinparam sequence {
+ArrowColor black
+LifeLineBorderColor black
+LifeLineBackgroundColor khaki
+
+ParticipantBackgroundColor lightgoldenrodyellow
+}
+participant Actor
+Actor -> PromotionServiceImpl : getDailyCoupon
+activate PromotionServiceImpl
+PromotionServiceImpl -> ParamCheckUtil : checkDailyCouponRequest
+activate ParamCheckUtil
+ParamCheckUtil --> PromotionServiceImpl
+deactivate ParamCheckUtil
+deactivate ParamCheckUtil
+PromotionServiceImpl -> ICouponService : getDailyCoupon
+activate ICouponService
+ICouponService --> IInteractiveCampaignServiceLocal : triggerConditionAction
+activate IInteractiveCampaignServiceLocal
+IInteractiveCampaignServiceLocal -> InteractiveCampaignApiService : dailyCoupon\n(调goldeneye天降活动)
+activate InteractiveCampaignApiService
+InteractiveCampaignApiService --> IInteractiveCampaignServiceLocal : 返回天降结果
+deactivate InteractiveCampaignApiService
+IInteractiveCampaignServiceLocal --> ICouponService
+deactivate IInteractiveCampaignServiceLocal
+ICouponService --> PromotionServiceImpl
+deactivate ICouponService
+PromotionServiceImpl --> Actor
+deactivate PromotionServiceImpl
+@enduml

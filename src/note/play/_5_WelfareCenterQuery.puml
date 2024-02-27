@@ -1,0 +1,24 @@
+@startuml
+skinparam sequence {
+ArrowColor black
+LifeLineBorderColor black
+LifeLineBackgroundColor khaki
+
+ParticipantBackgroundColor lightgoldenrodyellow
+}
+
+participant "前端" as 前端
+participant "营销聚合页面" as 营销聚合页面
+
+activate 前端
+前端 -> 营销聚合页面 : 条件查询
+activate 营销聚合页面
+营销聚合页面 -> 营销聚合页面 : 校验：request若为空，返回失败并提示
+营销聚合页面 -> 营销聚合页面 : request转SearchVO组装查询条件：id, name(like), cityList, entranceList, createdMisId, beginTime & endTime, status, page, pageSize
+营销聚合页面 -> 营销聚合页面 : 查询总数
+营销聚合页面 -> 营销聚合页面 : 分页查询：按上述条件查询
+营销聚合页面 -> 营销聚合页面 : 查询人群，并将PO转为VO
+营销聚合页面 --> 前端 : 返回结果
+deactivate 营销聚合页面
+deactivate 前端
+@enduml

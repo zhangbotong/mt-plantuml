@@ -1,0 +1,27 @@
+@startuml
+skinparam sequence {
+ArrowColor black
+LifeLineBorderColor black
+LifeLineBackgroundColor khaki
+
+ParticipantBackgroundColor lightgoldenrodyellow
+}
+
+participant "前端" as 前端
+participant "营销聚合页面" as 营销聚合页面
+participant "bpm" as bpm
+'查询等
+
+activate 前端
+前端 -> 营销聚合页面 : 提交（开启审批流）
+activate 营销聚合页面
+营销聚合页面 -> 营销聚合页面 : 参数校验：request、misId 不为空，且 id>=0，否则返回失败并提示
+营销聚合页面 -> 营销聚合页面 : 幂等操作：状态为【审批中】、【待生效】、【已生效】的直接返回成功
+营销聚合页面 -> 营销聚合页面 : 状态机校验：状态为【待提交】才可提交，其他返回失败并提示
+营销聚合页面 -> 营销聚合页面 : 权限校验：创建人与提交人需一致，否则返回失败并提示
+营销聚合页面 -> bpm : 开启审批流
+营销聚合页面 -> 营销聚合页面 : 更新: updateMisId, utime, status?(广告没更新状态)
+营销聚合页面 --> 前端 : 返回营销聚合页面id
+deactivate 营销聚合页面
+deactivate 前端
+@enduml

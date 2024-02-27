@@ -1,0 +1,196 @@
+@startuml
+skinparam sequence {
+ArrowColor black
+LifeLineBorderColor black
+LifeLineBackgroundColor khaki
+ParticipantBackgroundColor lightgoldenrodyellow
+}
+participant Actor
+Actor -> AdsThriftServiceImpl : getBannerForPassengerV4
+activate AdsThriftServiceImpl
+AdsThriftServiceImpl -> PassengerShowBannerService : getBannerForPassengerV4
+activate PassengerShowBannerService
+PassengerShowBannerService -> CheckParamService : isParamValid
+activate CheckParamService
+CheckParamService --> PassengerShowBannerService
+deactivate CheckParamService
+PassengerShowBannerService -> CheckParamService : checkDefaultPosition
+activate CheckParamService
+CheckParamService --> PassengerShowBannerService
+deactivate CheckParamService
+PassengerShowBannerService -> PassengerShowBannerService : removeNotAllowedLocation\n(企业用户熔断广告)
+activate PassengerShowBannerService
+PassengerShowBannerService --> PassengerShowBannerService
+deactivate PassengerShowBannerService
+PassengerShowBannerService -> PassengerShowBannerDataService : getBannerForPassenger
+activate PassengerShowBannerDataService
+PassengerShowBannerDataService -> PassengerShowBannerDataService : asyncSendCoupon\n(调用红包)
+activate PassengerShowBannerDataService
+PassengerShowBannerDataService -> DailyCouponTask : addJobToInitAsync
+activate DailyCouponTask
+DailyCouponTask --> PassengerShowBannerDataService
+deactivate DailyCouponTask
+PassengerShowBannerDataService --> PassengerShowBannerDataService
+deactivate PassengerShowBannerDataService
+PassengerShowBannerDataService -> PrepareDataService : prepareCapiData
+activate PrepareDataService
+PrepareDataService -> PrepareDataService : filterPoList
+activate PrepareDataService
+PrepareDataService -> BannerInfoV2PO : isCityMatch
+activate BannerInfoV2PO
+BannerInfoV2PO --> PrepareDataService
+deactivate BannerInfoV2PO
+PrepareDataService -> BannerInfoV2PO : isPartnerIdMatchForPassenger
+activate BannerInfoV2PO
+BannerInfoV2PO --> PrepareDataService
+deactivate BannerInfoV2PO
+PrepareDataService -> BannerInfoV2PO : isPartnerCarTypeMatch
+activate BannerInfoV2PO
+BannerInfoV2PO --> PrepareDataService
+deactivate BannerInfoV2PO
+PrepareDataService -> BannerInfoV2PO : isBusinessIdMatchForPassenger
+activate BannerInfoV2PO
+BannerInfoV2PO --> PrepareDataService
+deactivate BannerInfoV2PO
+PrepareDataService -> BannerInfoV2PO : isChannelIdMatch
+activate BannerInfoV2PO
+BannerInfoV2PO --> PrepareDataService
+deactivate BannerInfoV2PO
+PrepareDataService -> BannerInfoV2PO : isChannelCodeMatch
+activate BannerInfoV2PO
+BannerInfoV2PO --> PrepareDataService
+deactivate BannerInfoV2PO
+PrepareDataService -> BannerInfoV2PO : isloginedVisible
+activate BannerInfoV2PO
+BannerInfoV2PO --> PrepareDataService
+deactivate BannerInfoV2PO
+PrepareDataService -> BannerInfoV2PO : isMtAdMatch
+activate BannerInfoV2PO
+BannerInfoV2PO --> PrepareDataService
+deactivate BannerInfoV2PO
+PrepareDataService --> PrepareDataService
+deactivate PrepareDataService
+PrepareDataService -> PrepareDataService : mergeLocationAndInfo
+activate PrepareDataService
+PrepareDataService --> PrepareDataService
+deactivate PrepareDataService
+PrepareDataService -> PrepareContextService : preparePassengerFilterContext
+activate PrepareContextService
+PrepareContextService -> PrepareContextService : buildNeededParamSet
+activate PrepareContextService
+PrepareContextService -> PrepareContextService : judgeIsSupportPartner
+activate PrepareContextService
+PrepareContextService --> PrepareContextService
+deactivate PrepareContextService
+PrepareContextService -> PrepareContextService : judgeNeedPartnerIdParam
+activate PrepareContextService
+PrepareContextService --> PrepareContextService
+deactivate PrepareContextService
+PrepareContextService -> PrepareContextService : judgeNeedPartnerCarTypeIdParam
+activate PrepareContextService
+PrepareContextService --> PrepareContextService
+deactivate PrepareContextService
+PrepareContextService -> PrepareContextService : judgeNeedStartLocationParam
+activate PrepareContextService
+PrepareContextService --> PrepareContextService
+deactivate PrepareContextService
+PrepareContextService -> PrepareContextService : judgeNeedEndLocationParam
+activate PrepareContextService
+PrepareContextService --> PrepareContextService
+deactivate PrepareContextService
+PrepareContextService --> PrepareContextService
+deactivate PrepareContextService
+PrepareContextService -> PrepareContextService : buildOrderCategoryList
+activate PrepareContextService
+PrepareContextService --> PrepareContextService
+deactivate PrepareContextService
+PrepareContextService -> PrepareContextService : queryOrderInfo
+activate PrepareContextService
+PrepareContextService -> PrepareContextService : buildOrderQueryRequest
+activate PrepareContextService
+PrepareContextService --> PrepareContextService
+deactivate PrepareContextService
+PrepareContextService --> PrepareContextService
+deactivate PrepareContextService
+PrepareContextService -> PrepareContextService : buildContextFromOrderResponse
+activate PrepareContextService
+PrepareContextService --> PrepareContextService
+deactivate PrepareContextService
+PrepareContextService --> PrepareDataService
+deactivate PrepareContextService
+PrepareDataService --> PassengerShowBannerDataService
+deactivate PrepareDataService
+PassengerShowBannerDataService -> PassengerShowBannerDataService : filterAndConvertForCV2
+activate PassengerShowBannerDataService
+PassengerShowBannerDataService -> PassengerBannerFilterChainService : bannerFilter
+activate PassengerBannerFilterChainService
+PassengerBannerFilterChainService --> PassengerShowBannerDataService
+deactivate PassengerBannerFilterChainService
+PassengerShowBannerDataService -> CouponAggregationDataService : aggregationBannerDataPreQueryCoupon
+activate CouponAggregationDataService
+CouponAggregationDataService -> CouponAggregationDataService : queryDailyCouponData
+activate CouponAggregationDataService
+CouponAggregationDataService -> IStrategyPromotionService : queryDailyCoupon
+activate IStrategyPromotionService
+IStrategyPromotionService --> CouponAggregationDataService
+deactivate IStrategyPromotionService
+CouponAggregationDataService --> CouponAggregationDataService
+deactivate CouponAggregationDataService
+CouponAggregationDataService -> CouponAggregationDataService : filterAndAggregation
+activate CouponAggregationDataService
+CouponAggregationDataService -> CouponAggregationDataService : queryAndGetDailyCouponData
+activate CouponAggregationDataService
+CouponAggregationDataService --> CouponAggregationDataService
+deactivate CouponAggregationDataService
+CouponAggregationDataService -> MaxDiscountService : getMaxDiscountInfo
+activate MaxDiscountService
+MaxDiscountService --> CouponAggregationDataService
+deactivate MaxDiscountService
+CouponAggregationDataService --> CouponAggregationDataService
+deactivate CouponAggregationDataService
+CouponAggregationDataService --> PassengerShowBannerDataService
+deactivate CouponAggregationDataService
+PassengerShowBannerDataService --> PassengerShowBannerDataService
+deactivate PassengerShowBannerDataService
+PassengerShowBannerDataService -> PassengerShowBannerDataService : generateLocationCodeAndFrameListMap
+activate PassengerShowBannerDataService
+PassengerShowBannerDataService --> PassengerShowBannerDataService
+deactivate PassengerShowBannerDataService
+PassengerShowBannerDataService --> PassengerShowBannerService
+deactivate PassengerShowBannerDataService
+PassengerShowBannerService -> CouponAggregationDataService : aggregationBannerDataFinally
+activate CouponAggregationDataService
+CouponAggregationDataService -> CouponAggregationDataService : queryAndGetDailyCouponData
+activate CouponAggregationDataService
+CouponAggregationDataService -> IStrategyPromotionService : getDailyCoupon
+activate IStrategyPromotionService
+IStrategyPromotionService --> CouponAggregationDataService
+deactivate IStrategyPromotionService
+CouponAggregationDataService --> CouponAggregationDataService
+deactivate CouponAggregationDataService
+CouponAggregationDataService --> PassengerShowBannerService
+deactivate CouponAggregationDataService
+PassengerShowBannerService -> PassengerShowBannerService : getBannerInfoIdListByFrameMap
+activate PassengerShowBannerService
+PassengerShowBannerService --> PassengerShowBannerService
+deactivate PassengerShowBannerService
+PassengerShowBannerService -> JumpUrlProcessService : processJumpUrl
+activate JumpUrlProcessService
+JumpUrlProcessService -> JumpUrlProcessService : jumpUrlAddAdsId
+activate JumpUrlProcessService
+JumpUrlProcessService -> JumpUrlProcessService : jumpUrlAddAdsId
+activate JumpUrlProcessService
+JumpUrlProcessService --> JumpUrlProcessService
+deactivate JumpUrlProcessService
+JumpUrlProcessService -> JumpUrlProcessService : jumpUrlAddAdsId
+activate JumpUrlProcessService
+JumpUrlProcessService --> JumpUrlProcessService
+deactivate JumpUrlProcessService
+JumpUrlProcessService --> JumpUrlProcessService
+deactivate JumpUrlProcessService
+JumpUrlProcessService --> PassengerShowBannerService
+deactivate JumpUrlProcessService
+PassengerShowBannerService --> AdsThriftServiceImpl
+deactivate PassengerShowBannerService
+return
+@enduml

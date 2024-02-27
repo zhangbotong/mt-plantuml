@@ -1,0 +1,17 @@
+@startuml
+skinparam sequence {
+ArrowColor black
+LifeLineBorderColor black
+LifeLineBackgroundColor khaki
+
+ParticipantBackgroundColor lightgoldenrodyellow
+}
+activate Actor
+Actor -> InteractiveCampaignServiceImpl : selectCommonProperty
+activate InteractiveCampaignServiceImpl
+InteractiveCampaignServiceImpl -> EventPropertyService : getCommonProperty
+activate EventPropertyService
+EventPropertyService -> EventPropertyService : handleProperties
+activate EventPropertyService
+EventPropertyService -> EventPropertyService : handleProperty(PropertyModel.java -> Property.thrift, Add operatorList)
+@enduml
