@@ -25,74 +25,43 @@ deactivate 其他BU带打车图标
 activate cscenes
 cscenes -> Mafka: Produce MQ\nTopic = "dache.cross.poi.info", skipType = 20（keep_last）\n过滤条件：城市=上海，BU=[酒店、休闲娱乐、生活服务]
 deactivate cscenes
-Mafka -> Goldeneye : Consume MQ - CrossPoiListener\n Topic = "dache.cross.poi.info"
+Mafka -> Goldeneye : Consume MQ\n Topic = "dache.cross.poi.info"
 activate Goldeneye
-    Goldeneye -> Goldeneye : 1. 过滤: \n 1.1 Event、城市、有效期、\n 1.2 子活动：周几生效、生效时段如 7.00～8.00、initEvent、分流、\n 1.3 成本、频次、人群、隔离优先级、活动策略、\n 1.4 公用属性、Event 属性表达式、优先命中、城市空白组
-    activate Goldeneye
-    deactivate Goldeneye
-
-    Goldeneye -> Goldeneye : 2. 处理立即触发的 step
-    activate Goldeneye
-        Goldeneye -> Mafka : 2.1 发 MQ，Topic = "dache.goldeneye.delay.message"
-        activate Goldeneye
-        deactivate Goldeneye
-    deactivate Goldeneye
+Goldeneye -> Goldeneye : 1. 过滤: \n 1.1 Event、城市、有效期、\n 1.2 子活动：周几生效、生效时段如 7.00～8.00、initEvent、分流、\n 1.3 成本、频次、人群、隔离优先级、活动策略、\n 1.4 公用属性、Event 属性表达式、优先命中、城市空白组
+Goldeneye -> Mafka : 2. 处理立即触发的 step \n 2.1 发 MQ, Topic = "dache.goldeneye.delay.message"
 deactivate Goldeneye
-
-    activate Mafka
-    Mafka -> Goldeneye : 2.2 Consume MQ - TouchEventListener\nTopic = "dache.goldeneye.delay.message"
-    deactivate Mafka
-
-    activate Goldeneye
-        Goldeneye -> Goldeneye : 2.2.1 成本、频次过滤
-        activate Goldeneye
-        deactivate Goldeneye
-
-        Goldeneye -> Goldeneye : 2.2.2 Action：发券、短信、push
-        activate Goldeneye
-        deactivate Goldeneye
-    deactivate Goldeneye
-
-    Goldeneye -> Mafka : 3. 处理有时间窗口触发的 step 发 MQ,\nTopic = "dache.goldeneye.flink.event"
-    activate Goldeneye
-    deactivate Goldeneye
-
-    activate Mafka
-    Mafka -> 万象平台 : MafkaTopic = \n"dache.goldeneye.flink.event"
-    deactivate Mafka
-
-    activate 万象平台
-    万象平台 -> Kafka : Mafka2Kafka, KafkaTopic = \n"app.mafka.dache.goldeneye.flink.event_prod")
-    deactivate 万象平台
-
-    activate Kafka
-    Kafka -> GoldeyeFlink : Consume Kafka MQ
-    deactivate Kafka
-
-    activate GoldeyeFlink
-    GoldeyeFlink -> GoldeyeFlink : Wait step.durationTime(eg. 15s)
-    GoldeyeFlink -> Mafka : Produce MQ(Topic = "dache.goldeneye.flink.notify")
-    deactivate GoldeyeFlink
-
-    activate Mafka
-    Mafka -> Goldeneye : 3.1 Consume MQ - FlinkNotifyListener\nTopic = "dache.goldeneye.flink.notify"
-    deactivate Mafka
-
-    activate Goldeneye
-    Goldeneye -> Mafka : 3.1.1 Produce Action MQ (延时/立即)\nTopic = "dache.goldeneye.delay.message"
-    deactivate Goldeneye
-
-    activate Mafka
-    Mafka -> Goldeneye : 3.2 Consume MQ - TouchEventListener\nTopic = "dache.goldeneye.delay.message",\naction（发券、短信触达、push触达）
-    deactivate Mafka
-
-    activate Goldeneye
-        Goldeneye -> Goldeneye : 3.2.1 成本、频次过滤
-        activate Goldeneye
-        deactivate Goldeneye
-        'Goldeneye -> Mafka : 判断若是【智能一期事件】，则发 MQ(Topic = "dache.goldeneye.poi.hit.broadcast")给智能，\n由智能过滤后进行发券和触达
-        Goldeneye -> Goldeneye : 3.2.2 Action：发券、短信触达、push触达
-        activate Goldeneye
-        deactivate Goldeneye
-    deactivate Goldeneye
+activate Mafka
+Mafka -> Goldeneye : 2.2 Consume MQ - TouchEventListener\nTopic = "dache.goldeneye.delay.message"
+deactivate Mafka
+activate Goldeneye
+Goldeneye -> Goldeneye : 2.2.1 成本、频次过滤
+Goldeneye -> Goldeneye : 2.2.2 Action：发券、短信、push
+deactivate Goldeneye
+Goldeneye -> Mafka : 3. 处理有时间窗口触发的 step \n 3.1 发 MQ, Topic = "dache.goldeneye.flink.event"
+activate Goldeneye
+deactivate Goldeneye
+Mafka -> 万象平台 : MafkaTopic = \n"dache.goldeneye.flink.event"
+activate 万象平台
+万象平台 -> Kafka : Mafka2Kafka, KafkaTopic = \n"app.mafka.dache.goldeneye.flink.event_prod")
+deactivate 万象平台
+activate Kafka
+Kafka -> GoldeyeFlink : Consume Kafka MQ
+deactivate Kafka
+activate GoldeyeFlink
+GoldeyeFlink -> GoldeyeFlink : Wait step.durationTime(eg. 15s)
+GoldeyeFlink -> Mafka : Produce MQ(Topic = "dache.goldeneye.flink.notify")
+deactivate GoldeyeFlink
+activate Mafka
+Mafka -> Goldeneye : 3.2 Consume MQ - FlinkNotifyListener\nTopic = "dache.goldeneye.flink.notify"
+deactivate Mafka
+activate Goldeneye
+Goldeneye -> Mafka : 3.2.1 Produce Action MQ (延时/立即)\nTopic = "dache.goldeneye.delay.message"
+deactivate Goldeneye
+activate Mafka
+Mafka -> Goldeneye : 3.3 Consume MQ - TouchEventListener\nTopic = "dache.goldeneye.delay.message",\naction（发券、短信触达、push触达）
+deactivate Mafka
+activate Goldeneye
+Goldeneye -> Goldeneye : 3.3.1 成本、频次过滤
+'Goldeneye -> Mafka : 判断若是【智能一期事件】，则发 MQ(Topic = "dache.goldeneye.poi.hit.broadcast")给智能，\n由智能过滤后进行发券和触达
+Goldeneye -> Goldeneye : 3.3.2 Action：发券、短信触达、push触达
 @enduml
