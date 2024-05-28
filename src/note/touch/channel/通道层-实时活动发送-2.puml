@@ -1,0 +1,28 @@
+@startuml
+skinparam sequence {
+ArrowColor black
+LifeLineBorderColor black
+LifeLineBackgroundColor khaki
+ParticipantBackgroundColor lightgoldenrodyellow
+}
+
+participant Actor
+
+Actor -> MtLiveActivityTouchHandler : doSend
+activate MtLiveActivityTouchHandler
+MtLiveActivityTouchHandler -> PassengerPushUserService : getPushUserListByMtIdsWithPushServiceType \n 根据用户id查push_user_info表，\n发送前过滤OS及机型需要从此表查询
+activate PassengerPushUserService
+PassengerPushUserService -> PassengerPushUserDAO : getPushUserListByMtIdWithServiceType
+activate PassengerPushUserDAO
+PassengerPushUserDAO --> PassengerPushUserService
+deactivate PassengerPushUserDAO
+PassengerPushUserService --> MtLiveActivityTouchHandler
+deactivate PassengerPushUserService
+
+MtLiveActivityTouchHandler -> RhinoThreadPoolUtil : sendSingleMtLiveActivity: Rhino 限流、异步
+activate RhinoThreadPoolUtil
+RhinoThreadPoolUtil -> MtLiveActivityTouchHandler : sendSingleMtLiveActivity: 真正发送团实时活动消息
+deactivate RhinoThreadPoolUtil
+MtLiveActivityTouchHandler -> MtLiveActivityTouchHandler : 过滤为IOS或华为安卓机型的用户\nRPC call 团接口发实时活动消息
+return
+@enduml

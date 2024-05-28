@@ -1,0 +1,52 @@
+@startuml
+skinparam sequence {
+ArrowColor black
+LifeLineBorderColor black
+LifeLineBackgroundColor khaki
+ParticipantBackgroundColor lightgoldenrodyellow
+}
+
+participant Actor
+participant "LiveActivityMtTouchServiceImpl" as LiveActivityMtTouchServiceImpl
+participant "ActiveTemplateCache" as ActiveTemplateCache
+participant "RecordManageService" as RecordManageService
+participant "TouchChannelService" as TouchChannelService
+
+
+Actor -> LiveActivityMtTouchServiceImpl : channelTouch
+activate LiveActivityMtTouchServiceImpl
+LiveActivityMtTouchServiceImpl -> ActiveTemplateCache : getTemplate：查询模板表、实时活动模板表\n（最终要 activityId & styleType）
+activate ActiveTemplateCache
+ActiveTemplateCache --> LiveActivityMtTouchServiceImpl
+deactivate ActiveTemplateCache
+LiveActivityMtTouchServiceImpl -> LeafService : batchGetId：为保存 record 生成 recordId
+activate LeafService
+LeafService --> LiveActivityMtTouchServiceImpl
+deactivate LeafService
+LiveActivityMtTouchServiceImpl -> LiveActivityMtTouchServiceImpl : buildTouchRecord
+activate LiveActivityMtTouchServiceImpl
+deactivate LiveActivityMtTouchServiceImpl
+LiveActivityMtTouchServiceImpl -> RecordManageService : saveRecords：状态为“发送中”
+activate RecordManageService
+RecordManageService --> LiveActivityMtTouchServiceImpl
+deactivate RecordManageService
+LiveActivityMtTouchServiceImpl -> LiveActivityMtTouchServiceImpl : buildPassengerMtLiveActivityRequest：构造通道层request，\n用到实时活动模板表中的 activityId & styleType
+activate LiveActivityMtTouchServiceImpl
+deactivate LiveActivityMtTouchServiceImpl
+LiveActivityMtTouchServiceImpl -> TouchChannelService : mtLiveActivityTouch：调用通道层触达接口
+activate TouchChannelService
+TouchChannelService --> LiveActivityMtTouchServiceImpl
+deactivate TouchChannelService
+LiveActivityMtTouchServiceImpl -> LiveActivityMtTouchServiceImpl : isResponseFailed
+activate LiveActivityMtTouchServiceImpl
+LiveActivityMtTouchServiceImpl -> RecordManageService : updateRecordStatusAndCallTime：更新状态为“发送失败”
+activate RecordManageService
+RecordManageService --> LiveActivityMtTouchServiceImpl
+deactivate RecordManageService
+deactivate LiveActivityMtTouchServiceImpl
+LiveActivityMtTouchServiceImpl -> RecordManageService : updateRecordStatusAndCallTime：更新状态为“发送成功”
+activate RecordManageService
+RecordManageService --> LiveActivityMtTouchServiceImpl
+deactivate RecordManageService
+return
+@enduml

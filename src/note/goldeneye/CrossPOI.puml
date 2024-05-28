@@ -37,7 +37,7 @@ activate Goldeneye
 Goldeneye -> Goldeneye : 2.2.1 成本、频次过滤
 Goldeneye -> Goldeneye : 2.2.2 Action：发券、短信、push
 deactivate Goldeneye
-Goldeneye -> Mafka : 3. 处理有时间窗口触发的 step \n 3.1 发 MQ, Topic = "dache.goldeneye.flink.event"
+Goldeneye -> Mafka : 3. 处理有时间窗口触发的 step \n 3.1 发 MQ, Topic = "dache.goldeneye.flink.event"；\n且将 mq 消息、userId、EventModel、activeStepIds 保存至缓存\n(TouchListener 触发使用，只用到了 mq 消息内容)
 activate Goldeneye
 deactivate Goldeneye
 Mafka -> 万象平台 : MafkaTopic = \n"dache.goldeneye.flink.event"

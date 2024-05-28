@@ -1,0 +1,36 @@
+@startuml
+skinparam sequence {
+ArrowColor black
+LifeLineBorderColor black
+LifeLineBackgroundColor khaki
+ParticipantBackgroundColor lightgoldenrodyellow
+}
+
+participant Actor
+participant QueryLiveActivityService
+participant RhinoThreadPoolUtil
+participant DpMtPushRpcService
+participant DpMtLiveActivityRpcService
+
+Actor -> QueryLiveActivityService : queryLiveActivity
+activate QueryLiveActivityService
+QueryLiveActivityService -> RhinoThreadPoolUtil : 1、独立APP查询实时活动
+activate RhinoThreadPoolUtil
+RhinoThreadPoolUtil --> QueryLiveActivityService
+deactivate RhinoThreadPoolUtil
+QueryLiveActivityService -> QueryLiveActivityService : 2、团APP查询实时活动
+activate QueryLiveActivityService
+QueryLiveActivityService -> QueryLiveActivityService : initAppQueryLiveActivityResult
+activate QueryLiveActivityService
+deactivate QueryLiveActivityService
+QueryLiveActivityService -> DpMtPushRpcService : RPC查询美团pushToken(下一步入参需要)
+activate DpMtPushRpcService
+DpMtPushRpcService --> QueryLiveActivityService
+deactivate DpMtPushRpcService
+QueryLiveActivityService -> DpMtLiveActivityRpcService : RPC查询美团liveActivityToken
+activate DpMtLiveActivityRpcService
+DpMtLiveActivityRpcService --> QueryLiveActivityService
+deactivate DpMtLiveActivityRpcService
+deactivate QueryLiveActivityService
+return
+@enduml

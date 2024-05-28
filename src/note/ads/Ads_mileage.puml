@@ -79,9 +79,9 @@ activate PrepareContextService
 PrepareContextService -> PrepareContextService : buildNeededParamSet
 activate PrepareContextService
 PrepareContextService -> PrepareContextService : judgeIsSupportPartner
-activate PrepareContextService
-PrepareContextService --> PrepareContextService
-deactivate PrepareContextService
+'activate PrepareContextService
+'PrepareContextService --> PrepareContextService
+'deactivate PrepareContextService
 PrepareContextService -> PrepareContextService : judgeNeedPartnerIdParam
 activate PrepareContextService
 PrepareContextService --> PrepareContextService
@@ -162,11 +162,6 @@ PassengerShowBannerService -> CouponAggregationDataService : aggregationBannerDa
 activate CouponAggregationDataService
 CouponAggregationDataService -> CouponAggregationDataService : queryAndGetDailyCouponData
 activate CouponAggregationDataService
-CouponAggregationDataService -> IStrategyPromotionService : getDailyCoupon
-activate IStrategyPromotionService
-IStrategyPromotionService --> CouponAggregationDataService
-deactivate IStrategyPromotionService
-CouponAggregationDataService --> CouponAggregationDataService
 deactivate CouponAggregationDataService
 CouponAggregationDataService --> PassengerShowBannerService
 deactivate CouponAggregationDataService

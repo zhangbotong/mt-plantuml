@@ -1,0 +1,54 @@
+@startuml
+skinparam sequence {
+ArrowColor black
+LifeLineBorderColor black
+LifeLineBackgroundColor khaki
+ParticipantBackgroundColor lightgoldenrodyellow
+}
+
+participant Actor
+
+Actor -> CommonTouchService : touch
+activate CommonTouchService
+CommonTouchService -> ParamCheckService : preCheck：request 判空校验
+activate ParamCheckService
+ParamCheckService --> CommonTouchService
+deactivate ParamCheckService
+CommonTouchService -> TouchHandlerFactory : getTouchHandler：获取团APP实时活动 Handler
+activate TouchHandlerFactory
+TouchHandlerFactory --> CommonTouchService
+deactivate TouchHandlerFactory
+CommonTouchService -> AbstractTouchHandler : handle(MtLiveActivityTouchHandler)
+activate AbstractTouchHandler
+AbstractTouchHandler -> AbstractTouchHandler : commonParamCheck：\n二级校验（更细维度）
+activate AbstractTouchHandler
+deactivate AbstractTouchHandler
+AbstractTouchHandler -> AbstractTouchHandler : extraParamCheck：实时活动参数校验
+activate AbstractTouchHandler
+deactivate AbstractTouchHandler
+AbstractTouchHandler -> AbstractTouchHandler : flowControl：流量控制
+activate AbstractTouchHandler
+AbstractTouchHandler -> FlowControlService : flowControl
+activate FlowControlService
+FlowControlService -> FlowControlService : hitDegrade：降级（lion开关）
+activate FlowControlService
+deactivate FlowControlService
+FlowControlService -> FlowControlService : hitFlowLimit：限流（Rhino）
+activate FlowControlService
+deactivate FlowControlService
+FlowControlService --> AbstractTouchHandler
+deactivate FlowControlService
+deactivate AbstractTouchHandler
+AbstractTouchHandler -> AbstractTouchHandler : riskCheck：保时洁校验敏感词
+activate AbstractTouchHandler
+deactivate AbstractTouchHandler
+AbstractTouchHandler -> AbstractTouchHandler : doSend
+activate AbstractTouchHandler
+deactivate AbstractTouchHandler
+AbstractTouchHandler -> AbstractTouchHandler : handleResult：结果处理（log、打点）
+activate AbstractTouchHandler
+deactivate AbstractTouchHandler
+AbstractTouchHandler --> CommonTouchService
+deactivate AbstractTouchHandler
+return
+@enduml

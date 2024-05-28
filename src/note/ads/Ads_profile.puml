@@ -66,6 +66,7 @@ activate 策略
 策略 --> ads
 deactivate 策略
 ads -> ads: 排序
+ads -> ads: 帧数据组装，可拼装返回不同帧，相同帧只取第一个（优先级最高）
 ads --> capi: 广告数据
 deactivate ads
 deactivate capi

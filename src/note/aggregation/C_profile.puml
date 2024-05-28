@@ -1,0 +1,34 @@
+@startuml
+skinparam sequence {
+ArrowColor black
+LifeLineBorderColor black
+LifeLineBackgroundColor khaki
+
+ParticipantBackgroundColor lightgoldenrodyellow
+}
+
+participant "前端" as 前端
+participant "营销聚合页面" as 营销聚合页面
+participant "各组件" as 各组件
+participant "URL 模块" as URL模块
+
+
+前端 -> 营销聚合页面 : 请求落地页
+activate 营销聚合页面
+营销聚合页面 -> 营销聚合页面 : 校验参数：\n1、request不为空，否则返回失败并提示\n2、以下返回失败并提示：cityId < 0 | userId < 0 | entranceType == null | channelId <= 0
+营销聚合页面 -> 营销聚合页面 : request convert to requestVO
+营销聚合页面 -> 营销聚合页面 : 链式过滤：城市、日期、人群
+营销聚合页面 -> 营销聚合页面 : 命中多个按优先级最高、创建时间最近排序取第一个
+营销聚合页面 -> 各组件 : 逐个查询所有组件，若有失败则触发兜底页逻辑
+activate 各组件
+各组件 -> URL模块 : 查询URL模块 List
+activate URL模块
+URL模块 -> URL模块 : 根据 componentId 和 channelId 过滤结果
+URL模块 --> 各组件 : 返回命中 URL 模块 list
+deactivate URL模块
+各组件 --> 营销聚合页面 : 返回组件命中结果
+deactivate 各组件
+营销聚合页面 --> 前端 : 返回营销聚合页面
+deactivate 营销聚合页面
+deactivate 前端
+@enduml
