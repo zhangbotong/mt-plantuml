@@ -1,0 +1,39 @@
+@startuml
+skinparam sequence {
+ArrowColor black
+LifeLineBorderColor black
+LifeLineBackgroundColor khaki
+ParticipantBackgroundColor lightgoldenrodyellow
+}
+Actor User
+participant Front
+participant Capi
+participant Ads
+participant Goldeneye
+participant Growth
+participant Promotion
+
+User -> Front: 请求 59 类型广告
+
+activate Front
+Front -> Capi: 请求 59 类型广告
+    activate Capi
+    Capi -> Ads: 请求 59 类型广告
+        activate Ads
+        Ads -> Ads: 城市、周期、生效时段、渠道、\n频次、人群、实验等过滤
+        Ads -> Growth: 查用户手中已有有效活动卡
+            activate Growth
+                Growth --> Ads: 返回有效活动卡
+            deactivate Growth
+        opt
+            Ads -> Ads: 若用户手中无有效活动卡则过滤该广告
+        end
+        Ads -> Ads: 数据封装及排序（不携带活动卡信息）
+        Ads -> Capi: 广告数据返回
+        deactivate Ads
+    Capi -> Front: 广告数据返回
+    deactivate Capi
+Front -> User: 展示广告
+deactivate Front
+
+@enduml

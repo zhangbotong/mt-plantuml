@@ -1,0 +1,56 @@
+@startuml
+skinparam sequence {
+ArrowColor black
+LifeLineBorderColor black
+LifeLineBackgroundColor khaki
+ParticipantBackgroundColor lightgoldenrodyellow
+}
+
+participant	用户
+participant	客户端
+participant 业务系统
+participant 触达中心发送层
+database 触达中心发送层DB
+participant 触达中心通道层
+database 触达中心通道层DB
+participant cpush
+participant 美团Push平台
+participant 新美大push平台
+
+用户 -> 客户端: 下单
+客户端 -> 美团Push平台 : 团app创建实时活动(并生成实时活动token)
+客户端 -> 新美大push平台 : 独立app创建实时活动(并生成实时活动token)
+
+业务系统 -> 业务系统: 内部逻辑(监听履约状态)
+业务系统 -> 触达中心发送层: 更新/结束实时活动
+触达中心发送层 -> 触达中心发送层DB : 查询模版信息
+触达中心发送层 <-- 触达中心发送层DB
+触达中心发送层 -> 触达中心通道层 : 更新/结束实时活动
+
+触达中心通道层 -> 触达中心通道层DB : 查询 OS、机型
+触达中心通道层DB --> 触达中心通道层
+触达中心通道层 -> 触达中心通道层 : 过滤 OS、机型
+触达中心通道层  -> 美团Push平台 : 团app更新/结束实时活动
+触达中心通道层  <-- 美团Push平台
+触达中心通道层 -> 触达中心通道层DB: 独立app查询发送通道的pushToken
+触达中心通道层 <-- 触达中心通道层DB
+触达中心通道层 -> 新美大push平台 : 独立app更新/结束实时活动
+触达中心通道层  <-- 新美大push平台
+触达中心发送层 <--  触达中心通道层
+业务系统 <--  触达中心发送层
+
+业务系统 -> cpush: 向独立app发送普通push消息
+opt 是需要屏蔽的push消息
+cpush -> 新美大push平台: 查询实时活动token
+cpush <-- 新美大push平台
+opt 实时活动token存在
+cpush -> cpush: 屏蔽普通push消息
+else
+cpush -> 新美大push平台 : 发送普通push消息
+end
+else
+cpush -> 新美大push平台 : 发送普通push消息
+end
+业务系统 <--  cpush
+
+@enduml

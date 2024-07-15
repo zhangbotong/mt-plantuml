@@ -1,0 +1,63 @@
+@startuml
+skinparam sequence {
+ArrowColor black
+LifeLineBorderColor black
+LifeLineBackgroundColor khaki
+ParticipantBackgroundColor lightgoldenrodyellow
+}
+Actor User
+participant Front
+participant Capi
+participant Ads
+participant Goldeneye
+participant Growth
+participant Promotion
+
+User -> Front: 请求 52 类型广告
+
+activate Front
+Front -> Capi: 请求 52 类型广告
+    activate Capi
+    Capi -> Ads: 请求 52 类型广告
+        activate Ads
+        Ads -> Ads: 城市、周期、生效时段、渠道、\n频次、人群等过滤
+        alt 用户手中已有有效活动卡
+            Ads -> Growth: 查用户手中已有有效活动卡
+                activate Growth
+                Growth --> Ads: 返回有效活动卡
+                deactivate Growth
+        else 用户当前无有效活动卡
+            Ads -> Goldeneye: 请求命中“活动卡”触发动作的所有活动
+                activate Goldeneye
+                Goldeneye --> Ads: 命中该触发动作下的活动列表
+                deactivate Goldeneye
+            opt
+                Ads -> Ads: 若命中的活动列表中不含绑定活动则跳过该广告；
+            end
+            Ads -> Growth: 被动领卡
+                activate Growth
+                alt 用户有有效活动卡
+                    Growth -> Growth: 查询已有且有效活动卡返回
+                else 用户手中无卡或有卡但已过期
+                    Growth -> Promotion: 领取资产
+                        activate Promotion
+                        note right of Promotion: 已领取则返回领取历史；\n未领取则执行发放。
+                        Promotion -> Growth: 资产领取成功
+                        deactivate Promotion
+                    Growth -> Goldeneye: 上报领取资产成功
+                        activate Goldeneye
+                        Goldeneye --> Growth
+                        deactivate Goldeneye
+                    Growth -> Growth: 记录领卡至营销活动卡实体表
+                end
+                Growth --> Ads: 领卡结果返回
+                deactivate Growth
+        end
+        Ads -> Capi: 广告数据返回
+        deactivate Ads
+    Capi -> Front: 广告数据返回
+    deactivate Capi
+Front -> User: 展示广告
+deactivate Front
+
+@enduml

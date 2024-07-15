@@ -1,0 +1,120 @@
+@startuml
+
+title 广告展示&活动卡领取[运行环节]
+
+skinparam sequence {
+ArrowColor black
+LifeLineBorderColor black
+LifeLineBackgroundColor khaki
+
+ParticipantBackgroundColor lightgoldenrodyellow
+}
+
+participant "用户" as user
+participant "前端" as front
+participant "capi" as capi
+participant "广告(ads)" as ads
+participant "营销聚合页面" as 营销聚合页面
+participant "配置中心(goldeneye)" as goldeneye
+participant "营销活动卡(growth)" as growth
+participant "红包（promotion）" as coupon
+
+
+user -> front : 1、【Noticebar领卡】访问打车页面
+activate front
+
+front -> capi : 获取页面信息
+activate capi
+
+capi -> ads : 请求广告信息\n（首页/接驾页/到达页/送驾页 noticeBar广告） \n（getBannerForPassengerV4）
+activate ads
+
+ads -> goldeneye : 【广告】 \n 活动规则过滤（活动卡类型活动）\n（triggerCondition）
+activate goldeneye
+goldeneye -> ads : 活动命中结果（活动ID&活动卡ID）
+deactivate goldeneye
+
+ads -> ads : 判断命中活动 id 中含广告绑定的活动 id
+note right : **过滤条件**: \n当命中活动结果包含"广告配置的活动ID"时，\n判定为通过，可以命中该广告
+
+ads -> growth : 【**识别类型为被动发放**】领取活动卡(receiveMarketingCampaignCard) \n【识别类型为主动领取】预领取活动卡(preReceiveMarketingCampaignCard)
+activate growth
+
+growth -> coupon : 发放资产（携带活动卡关联券&权益模版IDs）\n（grantAssets）
+activate coupon
+coupon -> growth : 发放成功
+note right : 已领取则返回领取历史；\n未领取则执行发放。
+deactivate coupon
+
+growth -> growth : 生成营销活动卡实体并保存
+
+growth -> ads : 营销活动卡实体信息
+deactivate growth
+
+ads -> capi : 返回信息
+deactivate ads
+
+
+capi -> front : 获取成功
+deactivate capi
+
+
+front -> user : 展示打车页面
+deactivate front
+
+user -> front : 2、【Noticebar+行中卡片】\n点击广告进入营销聚合页面
+activate front
+
+front -> 营销聚合页面 : 「根据聚合页面id」获取营销聚合页面信息\n（配置人员保证广告与聚合页面绑定同一个活动id，即内外资产展示一致）
+activate 营销聚合页面
+
+营销聚合页面 -> growth : 【营销聚合页】「根据活动id+用户id」查询用户营销活动卡实体领取历史\n(queryMarketingCampaignCardEntityByUser)
+activate growth
+
+growth -> 营销聚合页面 : 营销活动卡实体信息 \n （包含资产领取结果、是否弹窗）
+deactivate growth
+
+营销聚合页面 -> front : 返回营销聚合页信息
+deactivate 营销聚合页面
+
+front -> growth : 弹窗成功，更新弹窗次数 \n(updateMarketingCampaignCardEntity)
+activate growth
+growth -> growth : 更新营销方案卡实体弹窗次数
+growth -> front : 更新成功
+deactivate growth
+
+front -> user : 展示活动落地页面
+deactivate front
+
+'user -> front : 3、打车页面展示行中卡片信息
+'activate front
+'
+'front -> capi : 获取广告信息
+'activate capi
+'
+'capi -> ads : 获取行中卡片信息
+'activate ads
+'
+'ads -> 营销聚合页面 : 「根据聚合页id查询该聚合页中“打车活动卡”组件」
+'activate 营销聚合页面
+'
+'营销聚合页面 -> growth : 【营销聚合页面】「根据活动id+用户id」查询用户营销活动卡实体领取历史\n(queryMarketingCampaignCardEntityByUser)
+'activate growth
+'
+'growth -> 营销聚合页面 : 营销活动卡实体信息
+'deactivate growth
+'
+'营销聚合页面 -> ads : 活动卡【资产+配置样式】
+'deactivate 营销聚合页面
+'
+'ads -> capi : 返回广告信息「资产+广告样式配置」
+'deactivate ads
+'
+'capi -> front : 返回广告信息
+'deactivate capi
+'
+'front -> user : 展示营销活动卡卡片
+'deactivate front
+
+@enduml
+

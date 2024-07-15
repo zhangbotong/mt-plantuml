@@ -1,0 +1,99 @@
+@startuml
+
+title 活动卡创建&广告创建[配置环节]
+
+skinparam sequence {
+ArrowColor black
+LifeLineBorderColor black
+LifeLineBackgroundColor khaki
+
+ParticipantBackgroundColor lightgoldenrodyellow
+}
+
+participant "运营人员" as user
+participant "经营工作台前端" as cityOperation
+participant "配置中心(goldeneye)" as goldeneye
+participant "红包（engine）" as coupon
+participant "权益（engine）" as benefit
+participant "营销活动卡(growth)" as growth
+participant "营销聚合页面" as 营销聚合页面
+participant "广告(ads)" as ads
+participant "实验" as exp
+
+user -> cityOperation : 1、配置活动
+activate cityOperation
+
+cityOperation -> coupon : 保存红包模板 \n（batchSavePromotionTemplate）
+activate coupon
+coupon -> cityOperation : 保存成功
+deactivate coupon
+cityOperation -> benefit : 保存权益模板 \n（batchCreateBenefit）
+activate benefit
+benefit -> cityOperation : 保存成功
+deactivate benefit
+
+cityOperation -[#006400]> growth : **查询营销活动卡类型** \n（**queryMarketingCampaignCardType**）
+activate growth
+growth -> cityOperation : 营销活动卡类型与名称
+deactivate growth
+
+cityOperation -[#006400]> growth : **保存营销活动卡（携带红包、权益模板ID）** \n（**saveOrUpdateMarketingCampaignCard**）
+activate growth
+growth -> cityOperation : 保存成功
+deactivate growth
+
+cityOperation -> goldeneye : 创建活动（携带活动卡ID、红包、权益模板ID） \n（saveInteractiveCampaign）
+note right : 活动数据扩展奖励类型，存储活动卡ID
+activate goldeneye
+goldeneye -> exp : 创建并启动实验 \n（createDacheDomainWithSampleTask）
+activate exp
+exp -> goldeneye : 创建成功
+deactivate exp
+
+goldeneye -> strategy : 同步策略活动ID \n（reportCampaignRel）
+activate strategy
+strategy -> goldeneye : 创建成功
+deactivate strategy
+
+goldeneye -> coupon : 同步红包、权益模板活动ID \n（saveCampaignInfo）
+activate coupon
+coupon -> goldeneye : 创建成功
+deactivate coupon
+goldeneye -[#006400]> growth : **同步活动卡活动ID** \n（**updateMarketingCampaignCard**）
+activate growth
+growth -> goldeneye : 创建成功
+deactivate growth
+
+goldeneye -> cityOperation : 创建成功
+deactivate goldeneye
+
+cityOperation -> user : 配置成功
+deactivate cityOperation
+
+user -> cityOperation : 2、配置营销聚合页面
+activate cityOperation
+
+cityOperation -> 营销聚合页面 : 创建营销聚合页面「含打车活动卡组件，且关联活动id」
+activate 营销聚合页面
+
+营销聚合页面 -> cityOperation : 创建成功
+deactivate 营销聚合页面
+
+cityOperation -> user : 配置成功
+deactivate cityOperation
+
+user -> cityOperation : 3、配置广告
+activate cityOperation
+
+cityOperation -> ads : 创建广告（**关联活动ID，且 URL 跳转至指定 id 的聚合页面**）\n （广告关联的**活动id** 需与 URL 中聚合页面打车活动卡关联的**活动id** 保持一致）\n（saveBanner）
+activate ads
+ads -> cityOperation : 创建成功
+deactivate ads
+note right : 广告数据存储活动卡活动ID
+cityOperation -> user : 配置成功
+deactivate cityOperation
+
+
+
+@enduml
+
