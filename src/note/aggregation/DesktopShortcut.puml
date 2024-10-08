@@ -1,0 +1,34 @@
+@startuml
+skinparam sequence {
+ArrowColor black
+LifeLineBorderColor black
+LifeLineBackgroundColor khaki
+
+ParticipantBackgroundColor lightgoldenrodyellow
+}
+
+participant "前端" as 前端
+participant "营销聚合页面" as 营销聚合页面
+participant "券服务" as 券服务
+participant "活动" as 活动
+
+
+前端 -> 营销聚合页面 : 请求落地页
+activate 营销聚合页面
+营销聚合页面 -> 营销聚合页面 : 校验参数
+营销聚合页面 -> 营销聚合页面 : request convert to requestVO
+营销聚合页面 -> 营销聚合页面 : 链式过滤：城市、日期、人群
+营销聚合页面 -> 营销聚合页面 : 命中多个按优先级最高、创建时间最近排序取第一个
+营销聚合页面 -> 券服务 : 渠道活动组预领券
+activate 券服务
+券服务 -> 活动 : 根据活动组id查询命中活动
+activate 活动
+活动 --> 券服务 : 返回命中活动列表
+deactivate 活动
+券服务 -> 券服务 : 根据命中活动的红包/权益模板\n查询资产信息并封装预领取信息
+券服务 --> 营销聚合页面 : 返回组件命中结果
+deactivate 券服务
+营销聚合页面 --> 前端 : 返回营销聚合页面
+deactivate 营销聚合页面
+deactivate 前端
+@enduml

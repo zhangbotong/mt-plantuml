@@ -1,0 +1,125 @@
+@startuml
+skinparam sequence {
+ArrowColor black
+LifeLineBorderColor black
+LifeLineBackgroundColor khaki
+ParticipantBackgroundColor lightgoldenrodyellow
+}
+
+participant Actor
+Actor -> AdsThriftServiceImpl : getBannerForPassengerV4
+activate AdsThriftServiceImpl
+AdsThriftServiceImpl -> PassengerShowBannerService : getBannerForPassengerV4
+activate PassengerShowBannerService
+PassengerShowBannerService -> CheckParamService : 参数校验-isParamValid
+activate CheckParamService
+CheckParamService --> PassengerShowBannerService
+deactivate CheckParamService
+PassengerShowBannerService -> ApiRequestConvert : 入参转换-convertCapiRequestToSearchVo
+activate ApiRequestConvert
+ApiRequestConvert -> PrepareContextService : preparePassengerFilterContext
+activate PrepareContextService
+PrepareContextService -> PrepareContextService : 查询订单信息-queryOrderInfo\n(商、车型、起终点、企业单)
+PrepareContextService --> ApiRequestConvert
+deactivate PrepareContextService
+ApiRequestConvert --> PassengerShowBannerService
+deactivate ApiRequestConvert
+PassengerShowBannerService -> PassengerShowBannerService : 广告熔断-removeNotAllowedLocation
+activate PassengerShowBannerService
+PassengerShowBannerService -> PassengerShowBannerService : 渠道熔断-channelRemoveNotAllowedLocation
+PassengerShowBannerService -> PassengerShowBannerService : 企业熔断-entUserRemoveNotAllowedLocation
+deactivate PassengerShowBannerService
+PassengerShowBannerService -> PassengerShowBannerDataService : 查询广告-getBannerForPassenger
+activate PassengerShowBannerDataService
+PassengerShowBannerDataService -> PassengerShowBannerDataService : 天降补发-asyncSendCoupon
+activate PassengerShowBannerDataService
+PassengerShowBannerDataService -> DailyCouponTask : addJobToInitAsync
+activate DailyCouponTask
+DailyCouponTask --> PassengerShowBannerDataService
+deactivate DailyCouponTask
+deactivate PassengerShowBannerDataService
+PassengerShowBannerDataService -> PrepareDataService : 获取广告-prepareCapiData
+activate PrepareDataService
+PrepareDataService -> ILocalCacheService : 查询广告by位置-getBannerInfoPOListByLocationIdList
+activate ILocalCacheService
+ILocalCacheService --> PrepareDataService
+deactivate ILocalCacheService
+PrepareDataService -> PrepareDataService : 条件过滤-filterPoList：\n城市、业务线、渠道、是否登陆
+PrepareDataService -> PrepareDataService : mergeLocationAndInfo
+PrepareDataService --> PassengerShowBannerDataService
+deactivate PrepareDataService
+PassengerShowBannerDataService -> PassengerShowBannerDataService : 策略模式条件过滤-filterAndConvertForCV2
+activate PassengerShowBannerDataService
+PassengerShowBannerDataService -> BannerInfoV2PO : deepCopy
+activate BannerInfoV2PO
+BannerInfoV2PO -> DetailInfoPO : deepCopy
+activate DetailInfoPO
+DetailInfoPO --> BannerInfoV2PO
+deactivate DetailInfoPO
+BannerInfoV2PO --> PassengerShowBannerDataService
+deactivate BannerInfoV2PO
+PassengerShowBannerDataService -> PassengerBannerFilterChainService : 策略模式条件过滤-bannerFilter
+activate PassengerBannerFilterChainService
+PassengerBannerFilterChainService --> PassengerShowBannerDataService
+deactivate PassengerBannerFilterChainService
+PassengerShowBannerDataService -> CouponAggregationDataService : 红包预领取-aggregationBannerDataPreQueryCoupon
+activate CouponAggregationDataService
+CouponAggregationDataService -> CouponAggregationDataService : queryDailyCouponData
+activate CouponAggregationDataService
+deactivate CouponAggregationDataService
+CouponAggregationDataService -> CouponAggregationDataService : filterAndAggregation
+activate CouponAggregationDataService
+CouponAggregationDataService -> ISliftDataService : siftCouponByCount
+activate ISliftDataService
+ISliftDataService --> CouponAggregationDataService
+deactivate ISliftDataService
+CouponAggregationDataService -> MaxDiscountService : getMaxDiscountInfo
+activate MaxDiscountService
+MaxDiscountService --> CouponAggregationDataService
+deactivate MaxDiscountService
+deactivate CouponAggregationDataService
+CouponAggregationDataService --> PassengerShowBannerDataService
+deactivate CouponAggregationDataService
+PassengerShowBannerDataService -> PassengerShowBannerDataService : convertForCV2
+activate PassengerShowBannerDataService
+PassengerShowBannerDataService -> PassengerShowBannerDataService : sortAndSiftByTab
+activate PassengerShowBannerDataService
+deactivate PassengerShowBannerDataService
+deactivate PassengerShowBannerDataService
+deactivate PassengerShowBannerDataService
+PassengerShowBannerDataService -> PassengerShowBannerDataService : 帧组装-generateLocationCodeAndFrameListMap
+activate PassengerShowBannerDataService
+deactivate PassengerShowBannerDataService
+PassengerShowBannerDataService --> PassengerShowBannerService
+deactivate PassengerShowBannerDataService
+PassengerShowBannerService -> CouponAggregationDataService : 后数据处理-aggregationBannerDataFinally
+activate CouponAggregationDataService
+CouponAggregationDataService -> CouponAggregationDataService : 天降领券、快捷方式渠道领券-handleCoupon
+activate CouponAggregationDataService
+deactivate CouponAggregationDataService
+CouponAggregationDataService -> CouponAggregationDataService : 箭头文案-handleArrowText
+activate CouponAggregationDataService
+deactivate CouponAggregationDataService
+CouponAggregationDataService --> PassengerShowBannerService
+deactivate CouponAggregationDataService
+PassengerShowBannerService -> JumpUrlProcessService : 拼接url-processJumpUrl
+activate JumpUrlProcessService
+JumpUrlProcessService --> PassengerShowBannerService
+deactivate JumpUrlProcessService
+PassengerShowBannerService -> PassengerShowBannerService : 返回值处理-buildSuccessResponse
+activate PassengerShowBannerService
+PassengerShowBannerService -> PassengerShowBannerService : createExtendInfo
+activate PassengerShowBannerService
+PassengerShowBannerService -> PassengerShowBannerService : needRefreshPage
+activate PassengerShowBannerService
+deactivate PassengerShowBannerService
+deactivate PassengerShowBannerService
+PassengerShowBannerService -> QuickAccessAreaUtil : 金刚位数据封装去重-fillQuickAccessArea
+activate QuickAccessAreaUtil
+QuickAccessAreaUtil --> PassengerShowBannerService
+deactivate QuickAccessAreaUtil
+deactivate PassengerShowBannerService
+PassengerShowBannerService --> AdsThriftServiceImpl
+deactivate PassengerShowBannerService
+return
+@enduml

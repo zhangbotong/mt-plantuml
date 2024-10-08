@@ -1,0 +1,63 @@
+@startuml
+skinparam sequence {
+ArrowColor black
+LifeLineBorderColor black
+LifeLineBackgroundColor khaki
+ParticipantBackgroundColor lightgoldenrodyellow
+}
+participant Actor
+Actor -> AdsThriftServiceImpl : getBannerForDriverV2
+activate AdsThriftServiceImpl
+AdsThriftServiceImpl -> CheckParamService : 参数校验
+activate CheckParamService
+CheckParamService --> AdsThriftServiceImpl
+deactivate CheckParamService
+AdsThriftServiceImpl -> DriverShowBannerService : 查询司机广告
+activate DriverShowBannerService
+DriverShowBannerService -> DriverShowBannerService : 参数转换
+DriverShowBannerService -> AbstractDriverShowBannerService : 获取广告数据
+activate AbstractDriverShowBannerService
+AbstractDriverShowBannerService -> ILocalCacheService : getBannerInfoPOListByLocationIdList
+activate ILocalCacheService
+ILocalCacheService --> AbstractDriverShowBannerService
+deactivate ILocalCacheService
+AbstractDriverShowBannerService -> AbstractDriverShowBannerService : 过滤如：城市、是否登陆、商、渠道等
+
+AbstractDriverShowBannerService -> PrepareDataService : 合并位置及广告信息
+activate PrepareDataService
+PrepareDataService --> AbstractDriverShowBannerService
+deactivate PrepareDataService
+AbstractDriverShowBannerService --> DriverShowBannerService
+deactivate AbstractDriverShowBannerService
+DriverShowBannerService -> AbstractDriverShowBannerService : 条件过滤
+activate AbstractDriverShowBannerService
+AbstractDriverShowBannerService -> RegionFilterForRService : 过滤地理位置
+activate RegionFilterForRService
+RegionFilterForRService --> AbstractDriverShowBannerService
+deactivate RegionFilterForRService
+AbstractDriverShowBannerService -> GroupFilterDataForRService : 过滤人群
+activate GroupFilterDataForRService
+GroupFilterDataForRService --> AbstractDriverShowBannerService
+deactivate GroupFilterDataForRService
+AbstractDriverShowBannerService -> FrequencyFilterForRService : 频次过滤
+activate FrequencyFilterForRService
+FrequencyFilterForRService --> AbstractDriverShowBannerService
+deactivate FrequencyFilterForRService
+AbstractDriverShowBannerService -> GenericAggregationDataServiceV2 : 远程数据源
+activate GenericAggregationDataServiceV2
+GenericAggregationDataServiceV2 --> AbstractDriverShowBannerService
+deactivate GenericAggregationDataServiceV2
+AbstractDriverShowBannerService -> ISortDataService : 优先级排序
+activate ISortDataService
+ISortDataService --> AbstractDriverShowBannerService
+deactivate ISortDataService
+AbstractDriverShowBannerService --> DriverShowBannerService
+deactivate AbstractDriverShowBannerService
+DriverShowBannerService -> ConvertPOToAPIThriftVOUtil : 对象封装
+activate ConvertPOToAPIThriftVOUtil
+ConvertPOToAPIThriftVOUtil --> DriverShowBannerService
+deactivate ConvertPOToAPIThriftVOUtil
+DriverShowBannerService --> AdsThriftServiceImpl
+deactivate DriverShowBannerService
+return
+@enduml

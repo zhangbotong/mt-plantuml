@@ -9,8 +9,8 @@ ParticipantBackgroundColor lightgoldenrodyellow
 
 participant "前端" as 前端
 participant "营销聚合页面" as 营销聚合页面
-participant "各组件" as 各组件
-participant "URL 模块" as URL模块
+participant "魔方" as 魔方
+participant "红包" as 红包
 
 
 前端 -> 营销聚合页面 : 请求落地页
@@ -19,15 +19,53 @@ activate 营销聚合页面
 营销聚合页面 -> 营销聚合页面 : request convert to requestVO
 营销聚合页面 -> 营销聚合页面 : 链式过滤：城市、日期、人群
 营销聚合页面 -> 营销聚合页面 : 命中多个按优先级最高、创建时间最近排序取第一个
-营销聚合页面 -> 各组件 : 逐个查询所有组件，若有失败则触发兜底页逻辑
-activate 各组件
-各组件 -> URL模块 : 查询URL模块 List
-activate URL模块
-URL模块 -> URL模块 : 根据 componentId 和 channelId 过滤结果
-URL模块 --> 各组件 : 返回命中 URL 模块 list
-deactivate URL模块
-各组件 --> 营销聚合页面 : 返回组件命中结果
-deactivate 各组件
+
+opt 若页面有“通用url组件”/“聚合url组件”
+    营销聚合页面 -> 营销聚合页面 : 查询url模块列表
+end
+
+opt 若页面有“魔方组件”
+    营销聚合页面 -> 魔方 : 并发查询魔方预发券/已领券信息
+    activate 魔方
+    魔方 --> 营销聚合页面
+    deactivate 魔方
+end
+
+opt 若页面有“黑盒领券”/“桌面引导”组件
+    营销聚合页面 -> 红包 : 并发查询渠道活动组预领券、已领券
+    activate 红包
+    红包 --> 营销聚合页面
+    deactivate 红包
+end
+
+opt 若页面有“套餐组件”
+    营销聚合页面 -> 套餐 : 并发查询套餐推荐列表
+    activate 套餐
+    套餐 --> 营销聚合页面
+    deactivate 套餐
+end
+
+opt 若页面有“任务组件”
+    营销聚合页面 -> 任务 : 并发查询命中任务
+    activate 任务
+    任务 --> 营销聚合页面
+    deactivate 任务
+end
+
+opt 若页面有“里程组件”/“里程兑换组件”
+    营销聚合页面 -> 会员 : 并发查询里程总值、兑换券信息
+    activate 会员
+    会员 --> 营销聚合页面
+    deactivate 会员
+end
+
+opt 若页面有“活动卡组件”
+    营销聚合页面 -> 活动卡_growth : 并发查询活动卡信息
+    activate 活动卡_growth
+    活动卡_growth --> 营销聚合页面
+    deactivate 活动卡_growth
+end
+
 营销聚合页面 --> 前端 : 返回营销聚合页面
 deactivate 营销聚合页面
 deactivate 前端

@@ -1,0 +1,18 @@
+@startuml
+skinparam sequence {
+ArrowColor black
+LifeLineBorderColor black
+LifeLineBackgroundColor khaki
+ParticipantBackgroundColor lightgoldenrodyellow
+}
+participant Actor
+Actor -> AdsManageServiceImpl : getBannerById
+activate AdsManageServiceImpl
+AdsManageServiceImpl -> IBannerInfoService : 查询广告详情-getBannerInfoById
+activate IBannerInfoService
+IBannerInfoService -> IBannerInfoService : 校验 id 合法性
+IBannerInfoService -> IBannerInfoService : 查询数据库并转换为VO对象
+IBannerInfoService --> AdsManageServiceImpl
+deactivate IBannerInfoService
+return
+@enduml

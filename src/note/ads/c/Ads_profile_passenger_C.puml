@@ -10,6 +10,10 @@ activate capi
 capi -> ads: 广告位置code、用户信息、设备信息、渠道城市id, 经纬度等信息
 activate ads
 ads -> ads: 参数校验
+ads -> 订单: 查询车型、商、起终点、是否企业打车等信息
+activate 订单
+订单 --> ads
+deactivate 订单
 ads -> ads: 参数转化
 ads -> ads: 企业广告熔断
 ads -> ads: 根据入参的广告 location code从缓存查询广告数据
@@ -18,24 +22,20 @@ ads -> lbs: 根据区域、地理围栏过滤广告
 activate lbs
 lbs --> ads
 deactivate lbs
-ads -> 配置中心套餐玩法: 如果是配置中心/套餐/玩法配置的广告，则调用对方接口决定是否展示
-activate 配置中心套餐玩法
-配置中心套餐玩法 --> ads
-deactivate 配置中心套餐玩法
-ads -> 智能运营: 智能运营过滤
-activate 智能运营
-智能运营 --> ads
-deactivate 智能运营
+ads -> 城市空白组: 城市空白组过滤
+activate 城市空白组
+城市空白组 --> ads
+deactivate 城市空白组
 ads -> ads: 车型品类过滤(广义上的品类,包括服务商、pci等不同粒度的过滤)
 ads -> 实验: 城市空白组过滤
 activate 实验
 实验 --> ads
 deactivate 实验
 ads -> ads: 客户端版本过滤
-ads -> 活动: 广告关联天降活动过滤
-activate 活动
-活动 --> ads
-deactivate 活动
+ads -> 红包: 券提醒过滤
+activate 红包
+红包 --> ads
+deactivate 红包
 ads -> 实验: 广告关联实验过滤
 activate 实验
 实验 --> ads
@@ -67,6 +67,12 @@ activate 策略
 deactivate 策略
 ads -> ads: 排序
 ads -> ads: 帧数据组装，可拼装返回不同帧，相同帧只取第一个（优先级最高）
+opt 若有天降、渠道领券广告
+    ads -> ads: 天降领券、渠道领券
+end
+opt 若有金刚位广告
+    ads -> ads: 金刚位广告封装、去重
+end
 ads --> capi: 广告数据
 deactivate ads
 deactivate capi

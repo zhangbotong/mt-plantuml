@@ -1,0 +1,40 @@
+@startuml
+skinparam sequence {
+ArrowColor black
+LifeLineBorderColor black
+LifeLineBackgroundColor khaki
+ParticipantBackgroundColor lightgoldenrodyellow
+}
+participant Actor
+Actor -> AdsManageServiceImpl : saveBanner
+activate AdsManageServiceImpl
+AdsManageServiceImpl -> ParamCheckUtil : 参数校验-isParamValid
+activate ParamCheckUtil
+ParamCheckUtil --> AdsManageServiceImpl
+deactivate ParamCheckUtil
+AdsManageServiceImpl -> ParamCheckUtil : 校验重复帧-checkFrameLevel
+activate ParamCheckUtil
+ParamCheckUtil --> AdsManageServiceImpl
+deactivate ParamCheckUtil
+AdsManageServiceImpl -> ParamCheckUtil : 帧排序-sortByFrameLevel
+activate ParamCheckUtil
+ParamCheckUtil --> AdsManageServiceImpl
+deactivate ParamCheckUtil
+AdsManageServiceImpl -> ParamCheckUtil : 校验list项不空、文字长度等-\ncheckAndSetBannerInfo
+activate ParamCheckUtil
+ParamCheckUtil --> AdsManageServiceImpl
+deactivate ParamCheckUtil
+AdsManageServiceImpl -> ParamCheckUtil : 校验生效时间-endTimeInvalid
+activate ParamCheckUtil
+ParamCheckUtil --> AdsManageServiceImpl
+deactivate ParamCheckUtil
+AdsManageServiceImpl -> IBannerInfoService : saveBannerInfo
+activate IBannerInfoService
+IBannerInfoService -> 策略服务StrategyMetaService: 上报策略
+activate 策略服务StrategyMetaService
+策略服务StrategyMetaService --> IBannerInfoService
+deactivate 策略服务StrategyMetaService
+IBannerInfoService --> AdsManageServiceImpl
+deactivate IBannerInfoService
+return
+@enduml

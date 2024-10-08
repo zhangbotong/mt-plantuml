@@ -1,0 +1,31 @@
+@startuml
+skinparam sequence {
+ArrowColor black
+LifeLineBorderColor black
+LifeLineBackgroundColor khaki
+ParticipantBackgroundColor lightgoldenrodyellow
+}
+
+Actor User
+participant capi
+participant ads
+database "DB" as db
+participant "BPM" as bpm
+
+activate capi
+capi -> ads: 保存广告，参数新增：\n<color:red>关联的id、关联类型（渠道活动组）</color>
+activate ads
+ads -> ads: 参数校验
+ads -> ads: 参数转化
+ads -> db: 保存至 DB
+ads -> bpm: 开启审批流
+activate bpm
+    bpm --> ads
+deactivate bpm
+ads -> ads : 保存审批流id
+ads -> ads : 更新审批状态
+deactivate ads
+ads --> capi
+deactivate capi
+
+@enduml
