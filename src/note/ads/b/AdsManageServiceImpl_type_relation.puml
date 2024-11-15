@@ -1,0 +1,16 @@
+@startuml
+skinparam sequence {
+ArrowColor black
+LifeLineBorderColor black
+LifeLineBackgroundColor khaki
+ParticipantBackgroundColor lightgoldenrodyellow
+}
+participant Actor
+
+Actor -> Ad : 广告位关联广告类型
+activate Ad
+Ad -> Ad : 参数校验
+Ad -> Ad : 删除现有关联到改广告位的广告类型
+Ad -> Ad : 新增入参中到广告位及类型关联关系至数据库
+return
+@enduml

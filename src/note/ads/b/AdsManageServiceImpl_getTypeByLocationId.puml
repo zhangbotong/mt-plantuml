@@ -1,0 +1,16 @@
+@startuml
+skinparam sequence {
+ArrowColor black
+LifeLineBorderColor black
+LifeLineBackgroundColor khaki
+ParticipantBackgroundColor lightgoldenrodyellow
+}
+participant Actor
+
+Actor -> Ad : 获取指定广告位可配置到广告类型列表
+activate Ad
+Ad -> Ad : 参数校验:
+Ad -> Ad : 从关联关系表中取出所有与该广告位关联的广告类型
+Ad -> Ad : 过滤掉已被禁用的广告类型
+return 广告类型列表
+@enduml
