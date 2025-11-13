@@ -1,0 +1,143 @@
+'神价批量取消消息消费者逻辑
+
+@startuml
+skinparam sequence {
+ArrowColor black
+LifeLineBorderColor black
+LifeLineBackgroundColor khaki
+ParticipantBackgroundColor lightgoldenrodyellow
+}
+
+participant Actor
+Actor -> BatchOperationConsumer : recvMessage
+activate BatchOperationConsumer
+BatchOperationConsumer -> LockService : tryLock
+activate LockService
+LockService --> BatchOperationConsumer
+deactivate LockService
+BatchOperationConsumer -> DateUtil : sleep
+activate DateUtil
+DateUtil --> BatchOperationConsumer
+deactivate DateUtil
+BatchOperationConsumer -> BatchOperationConsumer : consume
+activate BatchOperationConsumer
+BatchOperationConsumer -> BatchOperationConsumer : consumeBatchCancel
+activate BatchOperationConsumer
+BatchOperationConsumer -> CancelService : cancelByMsg
+activate CancelService
+CancelService -> TaskRecordRepository : 查询taskRecord--queryByIdFromMaster
+activate TaskRecordRepository
+TaskRecordRepository --> CancelService
+deactivate TaskRecordRepository
+CancelService -> SubDetailDomainService : 查询subDetail--getSubDetailDOList
+activate SubDetailDomainService
+SubDetailDomainService --> CancelService
+deactivate SubDetailDomainService
+CancelService -> TaskDetailDomainService : 更新taskDetail状态为running--updateState
+activate TaskDetailDomainService
+TaskDetailDomainService --> CancelService
+deactivate TaskDetailDomainService
+CancelService -> CancelService : 处理取消主流程--dealCancelSku
+activate CancelService
+CancelService -> ApplyResultService : 查询该活动能取消的sku状态列表--getCanOperateSkuStatusList
+activate ApplyResultService
+ApplyResultService --> CancelService
+deactivate ApplyResultService
+CancelService -> SubDetailDomainService : 更新subDetail的状态为 running--updateStateByBatchIdAndIdList
+activate SubDetailDomainService
+SubDetailDomainService --> CancelService
+deactivate SubDetailDomainService
+CancelService -> SkuDetailDomainService : 查询skuDetail -- querySkuDetailByEsId
+activate SkuDetailDomainService
+SkuDetailDomainService --> CancelService
+deactivate SkuDetailDomainService
+CancelService -> SubDetailDomainService : 若skuDetail状态为不能取消的状态，则更新subDetail状态为failed--updateStateByBatchIdAndIdList
+activate SubDetailDomainService
+SubDetailDomainService --> CancelService
+deactivate SubDetailDomainService
+CancelService -> CancelService : 判断scene为【神价】/【外卖折扣】，则执行单条取消逻辑--operateDbAndCancel
+activate CancelService
+CancelService -> SkuCancelDomainService : 1、清退单品立减活动；2、更新subDetail状态为已取消；3、先付增加操作记录；--operateDbAndCancel
+activate SkuCancelDomainService
+SkuCancelDomainService --> CancelService
+deactivate SkuCancelDomainService
+deactivate CancelService
+CancelService -> CancelService : 闪购名酒馆取消--cancelForSgFamousPub
+activate CancelService
+deactivate CancelService
+CancelService -> SubDetailDomainService : 更新subDetail状态为success--updateStateByBatchIdAndIdList
+activate SubDetailDomainService
+SubDetailDomainService --> CancelService
+deactivate SubDetailDomainService
+CancelService -> SubDetailDomainService : 若catch异常，则更新subDetail状态为failed--updateStateByBatchIdAndIdList
+activate SubDetailDomainService
+SubDetailDomainService --> CancelService
+deactivate SubDetailDomainService
+deactivate CancelService
+CancelService -> CancelService : 更新taskDetail和taskRecord--updateTaskDetailAndTaskRecord
+activate CancelService
+CancelService -> CancelService : 更新taskDetail状态为success和extend内容--updateTaskDetail
+activate CancelService
+CancelService -> TaskDetailDomainService : updateTaskDetail
+activate TaskDetailDomainService
+
+TaskDetailDomainService --> CancelService
+deactivate TaskDetailDomainService
+CancelService -> SkuDetailDomainService : 【若为名酒馆】：countValidStatusFromMaster
+activate SkuDetailDomainService
+SkuDetailDomainService --> CancelService
+deactivate SkuDetailDomainService
+CancelService -> CancelService : 【若为名酒馆】：解绑商家绑定关系--cancelWithPoi
+activate CancelService
+CancelService -> PoiJoinProxyService : 【若为名酒馆】：supplierPoiActivityInvalid
+activate PoiJoinProxyService
+PoiJoinProxyService --> CancelService
+deactivate PoiJoinProxyService
+deactivate CancelService
+deactivate CancelService
+CancelService -> TaskRecordRepository : 【更新taskRecord】：查询taskRecord--queryByIdFromMaster
+activate TaskRecordRepository
+TaskRecordRepository --> CancelService
+deactivate TaskRecordRepository
+
+CancelService -> TaskDomainService : 【更新taskRecord】：finishCount字段--updateTaskFinishedCount
+activate TaskDomainService
+TaskDomainService --> CancelService
+deactivate TaskDomainService
+CancelService -> TaskRecordRepository : 【更新taskRecord】：状态由running更新为finished--running2Finished
+activate TaskRecordRepository
+TaskRecordRepository --> CancelService
+deactivate TaskRecordRepository
+CancelService -> CancelService : 1、发送门店站内信；2、发送账户站内信；3、更新taskRecord的response字段sendMsgAndFillResponse
+activate CancelService
+CancelService -> CancelService : 发送账户站内信--sendAcctMsg
+activate CancelService
+deactivate CancelService
+CancelService -> CancelService : 发送门店站内信--sendAllPoiMsg
+activate CancelService
+deactivate CancelService
+deactivate CancelService
+CancelService -> TaskDomainService : 更新taskRecord的response字段updateTaskResponse
+activate TaskDomainService
+TaskDomainService --> CancelService
+deactivate TaskDomainService
+deactivate CancelService
+deactivate CancelService
+CancelService --> BatchOperationConsumer
+deactivate CancelService
+deactivate BatchOperationConsumer
+deactivate BatchOperationConsumer
+BatchOperationConsumer -> DateUtil : sleep
+activate DateUtil
+DateUtil --> BatchOperationConsumer
+deactivate DateUtil
+BatchOperationConsumer -> LockService : unLock
+activate LockService
+LockService --> BatchOperationConsumer
+deactivate LockService
+BatchOperationConsumer -> LockService : unLock
+activate LockService
+LockService --> BatchOperationConsumer
+deactivate LockService
+return
+@enduml

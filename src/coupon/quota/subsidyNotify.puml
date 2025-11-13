@@ -1,0 +1,48 @@
+@startuml
+skinparam sequence {
+ArrowColor black
+LifeLineBorderColor black
+LifeLineBackgroundColor khaki
+ParticipantBackgroundColor lightgoldenrodyellow
+}
+
+
+participant 库存服务
+participant 配置Squirrel
+participant 补贴库存Squirrel
+participant 库存流水DB
+
+库存服务 -> 配置Squirrel : 查库存rule配置
+activate 配置Squirrel
+配置Squirrel --> 库存服务
+deactivate 配置Squirrel
+
+     库存服务 -> 补贴库存Squirrel : 扣减补贴库存
+     activate 补贴库存Squirrel
+     补贴库存Squirrel --> 库存服务
+     deactivate 补贴库存Squirrel
+
+     opt 区域库存不足
+         库存服务 -> 补贴库存Squirrel : 跨区域重试扣减
+         activate 补贴库存Squirrel
+             补贴库存Squirrel --> 库存服务
+         deactivate 补贴库存Squirrel
+     end
+     alt 扣减成功部分（含全部成功&部分成功部分）
+          库存服务 -> 库存流水DB : 写 mysql 成功扣减记录
+          activate 库存流水DB
+          库存流水DB --> 库存服务
+          deactivate 库存流水DB
+     else 扣减失败/超时部分
+            库存服务 -> 补贴库存Squirrel : 回滚扣减成功部分
+            activate 补贴库存Squirrel
+                补贴库存Squirrel --> 库存服务
+            deactivate
+            库存服务 -> 库存流水DB : 写 mysql 回滚记录
+            activate 库存流水DB
+                库存流水DB --> 库存服务
+            deactivate 库存流水DB
+            库存服务 -> 库存服务 : 返回扣减失败原因
+     end
+
+@enduml

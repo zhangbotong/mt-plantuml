@@ -1,0 +1,71 @@
+@startuml
+skinparam sequence {
+ArrowColor black
+LifeLineBorderColor black
+LifeLineBackgroundColor khaki
+ParticipantBackgroundColor lightgoldenrodyellow
+}
+
+
+participant Actor
+participant Next
+participant 龙门
+participant Manage
+
+Actor -> Next : save
+activate Next
+
+    Next -> Next : hasTemplatePermission-权限校验
+    activate Next
+    deactivate Next
+
+    Next -> Next : genCouponGroup-生成待保存的券批次信息
+    activate Next
+
+        Next -> Next : validate-元数据层面校验（是否必填等基础校验+个性化校验）
+        activate Next
+        deactivate Next
+
+        Next -> Next : validateGeneralCoupon-通用券严格校验
+        activate Next
+        deactivate Next
+    deactivate Next
+
+    Next -> Next : createCouponGroup-保存券批次
+    activate Next
+        Next -> 龙门 : validateBudget-校验预算
+        activate 龙门
+        龙门 --> Next
+        deactivate 龙门
+
+        Next -> Manage : 保存
+        activate Manage
+        Manage --> Next
+        deactivate Manage
+    deactivate Next
+
+    Next -> Next : modifyCouponGroup-修改券批次
+    activate Next
+
+        Next -> 龙门 : validateBudget-校验预算
+        activate 龙门
+        龙门 --> Next
+        deactivate 龙门
+
+        Next -> Next : validOldCouponGroup-校验修改权限
+        activate Next
+        deactivate Next
+
+        Next -> Manage : 保存
+        activate Manage
+        Manage --> Next
+        deactivate Manage
+    deactivate Next
+
+    Next -> Next : asyncCompare4New
+    activate Next
+    deactivate Next
+deactivate Next
+return
+
+@enduml

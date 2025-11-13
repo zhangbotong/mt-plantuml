@@ -1,0 +1,25 @@
+@startuml
+skinparam sequence {
+ArrowColor black
+LifeLineBorderColor black
+LifeLineBackgroundColor khaki
+ParticipantBackgroundColor lightgoldenrodyellow
+}
+participant actor
+participant creport
+participant clink
+participant cpush
+participant db
+
+actor -> creport: 上报
+creport -> clink: 发mq上报
+    activate clink
+    clink -> cpush: 上报用户信息
+        activate cpush
+        cpush -> db: 保存上报信息
+        cpush --> clink
+        deactivate cpush
+    deactivate clink
+
+
+@enduml

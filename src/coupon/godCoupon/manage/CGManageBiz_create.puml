@@ -1,0 +1,101 @@
+@startuml
+skinparam sequence {
+    ArrowColor black
+    LifeLineBorderColor black
+    LifeLineBackgroundColor khaki
+    ParticipantBackgroundColor lightgoldenrodyellow
+}
+
+participant Actor
+participant Manage
+participant Group
+participant longmenspliter
+participant Qualify
+participant 风控
+participant 审批流
+
+Actor -> Manage : create
+activate Manage
+
+    Manage -> Manage : querySimpleTemplateById-查模板信息
+    activate Manage
+    deactivate Manage
+
+    Manage -> Manage : create-创建券批次
+    activate Manage
+
+        Manage -> Manage : couponGroupModelCheck-模型校验
+        activate Manage
+        deactivate Manage
+
+        Manage -> Manage : createCouponGroupDc
+        activate Manage
+
+            Manage -> longmenspliter : 预创建 AN
+            activate longmenspliter
+            longmenspliter --> Manage
+            deactivate longmenspliter
+
+            Manage -> Group : createCouponGroupWithResult-创建券批次
+            activate Group
+            Group --> Manage
+            deactivate Group
+
+            Manage -> Manage : 插入券批次记录数据
+            activate Manage
+            deactivate Manage
+
+        deactivate Manage
+
+        Manage -> Manage : createAN-创建AN
+        activate Manage
+
+            Manage --> longmenspliter : saveDistInfo-保存分摊信息
+            activate longmenspliter
+            longmenspliter --> Manage
+            deactivate longmenspliter
+
+        deactivate Manage
+
+        Manage -> Manage : bindShareRule-绑定共享规则
+        activate Manage
+
+            Manage -> Qualify : loadShareRule-加载共享规则
+            activate Qualify
+            Qualify --> Manage
+            deactivate Qualify
+
+            Manage -> Manage : 保存关联共享规则
+            activate Manage
+            deactivate Manage
+
+        deactivate Manage
+
+        Manage -> Manage : bindDynamicStrategy-绑定动态策略
+        activate Manage
+        deactivate Manage
+
+        Manage -> Manage : saveDraft-保存草稿信息
+        activate Manage
+        deactivate Manage
+
+        Manage -> 风控 : validateText-校验文案
+        activate 风控
+        风控 --> Manage
+        deactivate 风控
+
+        Manage -> Manage : asyncCompareCreateCouponGroup-建券异步比对
+        activate Manage
+        deactivate Manage
+
+        Manage -> 审批流 : submitAudit-提交审批流
+        activate 审批流
+        审批流 --> Manage
+        deactivate 审批流
+
+    deactivate Manage
+
+deactivate Manage
+
+return
+@enduml

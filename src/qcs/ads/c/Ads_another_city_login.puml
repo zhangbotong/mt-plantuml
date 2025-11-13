@@ -1,0 +1,37 @@
+@startuml
+skinparam sequence {
+ArrowColor black
+LifeLineBorderColor black
+LifeLineBackgroundColor khaki
+ParticipantBackgroundColor lightgoldenrodyellow
+}
+Actor User
+participant Front
+participant Ads
+participant 画像服务
+
+User -> Front: 进入打车首页
+
+activate Front
+    Front -> Ads: 请求广告位
+        activate Ads
+        Ads -> Ads: 城市、周期、生效时段、渠道、\n频次、人群、实验等过滤
+        alt 若广告配置异地登陆
+            Ads -> 画像服务: 查询用户常驻城市
+            activate 画像服务
+                画像服务 --> Ads
+            deactivate 画像服务
+            Ads -> Ads: 判断用户当前城市若等于常驻城市则过滤该广告
+        else 若广告配置本地登陆
+            Ads -> 画像服务: 查询用户常驻城市
+            activate 画像服务
+                画像服务 --> Ads
+            deactivate 画像服务
+            Ads -> Ads: 判断用户当前城市若不等于常驻城市则过滤该广告
+        end
+        Ads -> Front: 广告数据返回
+        deactivate Ads
+Front -> User: 展示广告
+deactivate Front
+
+@enduml

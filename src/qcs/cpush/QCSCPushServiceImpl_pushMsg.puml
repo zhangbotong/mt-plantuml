@@ -1,0 +1,50 @@
+@startuml
+skinparam sequence {
+ArrowColor black
+LifeLineBorderColor black
+LifeLineBackgroundColor khaki
+ParticipantBackgroundColor lightgoldenrodyellow
+}
+
+participant Actor
+Actor -> QCSCPushServiceImpl : pushMsg
+activate QCSCPushServiceImpl
+QCSCPushServiceImpl -> QCSCPushServiceImpl : isPushMsgParamInvalid，\n校验参数，如：url合法性、敏感词等
+QCSCPushServiceImpl -> CommonPushService : pushMsg
+activate CommonPushService
+CommonPushService -> UserBlackListConfig : filterUser，\n过滤黑名单用户（开关未打开）
+activate UserBlackListConfig
+UserBlackListConfig --> CommonPushService
+deactivate UserBlackListConfig
+CommonPushService -> PushUserInfoService : getPushUserListByMtIds，从数据库获取推送用户信息，主要是 pushToken
+activate PushUserInfoService
+PushUserInfoService --> CommonPushService
+deactivate PushUserInfoService
+CommonPushService -> CommonPushService : pushMsg，推送消息
+activate CommonPushService
+CommonPushService -> DpmtPushService : pushBatch，客户端为独立app且用户当前不在app内，通过push通道层和厂商对接发push
+activate DpmtPushService
+DpmtPushService --> CommonPushService
+deactivate DpmtPushService
+CommonPushService -> MtPushService : pushBatch，客户端为美团app，通过团push发push
+activate MtPushService
+MtPushService --> CommonPushService
+deactivate MtPushService
+CommonPushService -> SharkPushService : pushBatch，客户端为独立app且用户当前在app内，长链接发push
+activate SharkPushService
+SharkPushService --> CommonPushService
+deactivate SharkPushService
+CommonPushService -> MtWechatServPushService : pushWechatTemplateMsg，发微信服务号消息
+activate MtWechatServPushService
+MtWechatServPushService --> CommonPushService
+deactivate MtWechatServPushService
+CommonPushService -> DpPushService : pushBatch/pushTemplateBatch，客户端为点评app，发点评push
+activate DpPushService
+DpPushService --> CommonPushService
+deactivate DpPushService
+CommonPushService -> CommonPushService : sendToRetry，失败重试
+deactivate CommonPushService
+CommonPushService --> QCSCPushServiceImpl
+deactivate CommonPushService
+return
+@enduml

@@ -1,0 +1,122 @@
+@startuml
+skinparam sequence {
+ArrowColor black
+LifeLineBorderColor black
+LifeLineBackgroundColor khaki
+ParticipantBackgroundColor lightgoldenrodyellow
+}
+
+
+participant Actor
+Actor -> CancelService : batchCancelPoiList
+activate CancelService
+CancelService -> ActivityDomainService : 先查活动信息--getActivityById
+activate ActivityDomainService
+ActivityDomainService --> CancelService
+deactivate ActivityDomainService
+CancelService -> ApplyResultService : 再查可取消的skuDetail的状态列表--getCanOperateSkuStatusList
+activate ApplyResultService
+ApplyResultService --> CancelService
+deactivate ApplyResultService
+CancelService -> CancelService : 可取消校验--actAndActionCheck
+activate CancelService
+deactivate CancelService
+CancelService -> ApplyResultService : 查询账号下已申请该活动门店列表--getValidPoiList
+activate ApplyResultService
+ApplyResultService --> CancelService
+deactivate ApplyResultService
+CancelService -> BatchTaskService : 校验是否重复操作--checkRepeatOperate
+activate BatchTaskService
+BatchTaskService --> CancelService
+deactivate BatchTaskService
+CancelService -> LockService : tryLock
+activate LockService
+LockService --> CancelService
+deactivate LockService
+CancelService -> TaskRecordRepository : taskRecord插入一条数据--addTask
+activate TaskRecordRepository
+TaskRecordRepository -> CancelService : 多线程处理
+activate CancelService
+CancelService -> CancelService : 步入正题：批量取消byPoi操作--dealBatchCancelPoi
+activate CancelService
+CancelService -> TaskRecordRepository : 查询taskRecord--queryByIdFromMaster
+activate TaskRecordRepository
+TaskRecordRepository --> CancelService
+deactivate TaskRecordRepository
+CancelService -> CancelService : 拆分批量取消poi任务--splitBatchCancelPoiTask
+activate CancelService
+CancelService -> ActivityDomainService : 又查一遍活动信息--getActivityById
+activate ActivityDomainService
+ActivityDomainService --> CancelService
+deactivate ActivityDomainService
+CancelService -> ApplyResultService : 又查一遍该活动下可取消的skuDetail的状态列表--getCanOperateSkuStatusList
+activate ApplyResultService
+ApplyResultService --> CancelService
+deactivate ApplyResultService
+CancelService -> CancelService : 【可取消skuDetail状态列表为空】，外卖场景，则发消息给账户没有可取消的数据--sendNoneCancelToAccount4Wm
+activate CancelService
+deactivate CancelService
+CancelService -> CancelService : 【可取消skuDetail状态列表为空】，非外卖场景，则发消息给账户没有有效的可取消的sku--sendMqForValidSkuIsEmpty
+activate CancelService
+deactivate CancelService
+CancelService -> TaskDomainService : 【可取消skuDetail状态列表为空】更新taskRecord状态为finished--updateTaskAfterDone
+activate TaskDomainService
+TaskDomainService --> CancelService
+deactivate TaskDomainService
+CancelService -> CancelService : 【处理勾选数据流程】dealForSelectedPoi
+activate CancelService
+CancelService -> SkuDetailRepository : 【处理勾选数据流程】查询skuDetailList--querySimpleSkuListBySubActId
+activate SkuDetailRepository
+SkuDetailRepository --> CancelService
+deactivate SkuDetailRepository
+CancelService -> CancelService : 【处理勾选数据流程】取消主流程--operateDbAndSendMq
+activate CancelService
+deactivate CancelService
+deactivate CancelService
+CancelService -> ApplyResultService : 【处理筛选条件流程】，先查询账号下已申请的poi列表--getValidPoiList
+activate ApplyResultService
+ApplyResultService --> CancelService
+deactivate ApplyResultService
+CancelService -> CancelService : 【处理筛选条件流程】正戏开始--dealForQueryPoi
+activate CancelService
+CancelService -> CancelService : 【处理筛选条件流程】查询匹配的poi列表--getMatchRequirePoiSet
+activate CancelService
+CancelService -> ApplyResultService : 【处理筛选条件流程】已通过数大于0（折扣不需要判断？）--queryAggregatePoiBySubActId
+activate ApplyResultService
+ApplyResultService --> CancelService
+deactivate ApplyResultService
+CancelService -> ApplyResultService : 【处理筛选条件流程】已通过数小于等于0--queryAggregatePoiBySubActId
+activate ApplyResultService
+ApplyResultService --> CancelService
+deactivate ApplyResultService
+deactivate CancelService
+CancelService -> SkuDetailRepository : 【处理筛选条件流程】查询skuDetail列表--querySimpleSkuListBySubActId
+activate SkuDetailRepository
+SkuDetailRepository --> CancelService
+deactivate SkuDetailRepository
+CancelService -> CancelService : 【处理筛选条件流程】最后一步，删除核心流程，并totalCount+1--operateDbAndSendMq
+activate CancelService
+deactivate CancelService
+deactivate CancelService
+CancelService -> CancelService : 【total=0，且为外卖】发站内信--sendNoneCancelToAccount4Wm
+activate CancelService
+deactivate CancelService
+CancelService -> CancelService : 【total=0，且不为外卖】发站内信--sendMqForValidSkuIsEmpty
+activate CancelService
+deactivate CancelService
+CancelService -> TaskDomainService : 【total=0】更新taskRecord状态为finished，response等信息--updateTaskAfterDone
+activate TaskDomainService
+TaskDomainService --> CancelService
+deactivate TaskDomainService
+CancelService -> TaskDomainService : 【total>0】更新taskRecord的--updateTotalCount
+activate TaskDomainService
+TaskDomainService --> CancelService
+deactivate TaskDomainService
+deactivate CancelService
+deactivate CancelService
+CancelService -> LockService : unLock
+activate LockService
+LockService --> CancelService
+deactivate LockService
+return
+@enduml

@@ -1,0 +1,28 @@
+@startuml
+skinparam sequence {
+ArrowColor black
+LifeLineBorderColor black
+LifeLineBackgroundColor khaki
+ParticipantBackgroundColor lightgoldenrodyellow
+}
+
+
+participant 库存服务
+participant 配置Squirrel
+participant 补贴库存Squirrel
+
+库存服务 -> 配置Squirrel : 查库存rule配置
+activate 配置Squirrel
+配置Squirrel --> 库存服务
+deactivate 配置Squirrel
+
+库存服务 -> 库存服务 : 分离出补贴库存并为其构造查询参数
+
+库存服务 -> 补贴库存Squirrel : 并行查询所有维度（新增补贴库存维度）
+activate 补贴库存Squirrel
+补贴库存Squirrel --> 库存服务
+deactivate 补贴库存Squirrel
+
+库存服务 -> 库存服务 : 合并查询结果（新增补贴库存维度）至返回结果中
+
+@enduml

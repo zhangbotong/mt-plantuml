@@ -1,0 +1,28 @@
+@startuml
+skinparam sequence {
+ArrowColor black
+LifeLineBorderColor black
+LifeLineBackgroundColor khaki
+ParticipantBackgroundColor lightgoldenrodyellow
+}
+
+participant 前端
+participant 广告
+participant 里程服务
+
+activate 前端
+    前端 -> 广告: 请求广告类型66(里程兑换noticbar)
+        activate 广告
+        广告 -> 广告: 城市、周期、生效时段、渠道、\n频次、人群、实验等过滤
+        广告 -> 里程服务: 根据userId+city查可兑换里程券
+        activate 里程服务
+            里程服务 --> 广告: 返回用户可兑换里程券列表，\n并按券优惠排序，优惠大的在前
+        deactivate 里程服务
+        opt 若无里程可兑换券
+            广告 -> 广告: 过滤该广告
+        end
+        广告 -> 前端: 广告数据返回
+        deactivate 广告
+deactivate 前端
+
+@enduml

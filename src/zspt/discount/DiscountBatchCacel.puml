@@ -1,0 +1,119 @@
+@startuml
+skinparam sequence {
+ArrowColor black
+LifeLineBorderColor black
+LifeLineBackgroundColor khaki
+ParticipantBackgroundColor lightgoldenrodyellow
+}
+
+participant Actor
+Actor -> DiscountCancelService : dealBatchCancel
+activate DiscountCancelService
+DiscountCancelService -> TaskRecordRepository : 查task_record--queryByIdFromMaster
+activate TaskRecordRepository
+TaskRecordRepository --> DiscountCancelService
+deactivate TaskRecordRepository
+DiscountCancelService -> DiscountCancelService : 校验--isInvalidTaskForProcessBatchCancelBySku
+activate DiscountCancelService
+
+deactivate DiscountCancelService
+DiscountCancelService -> DiscountCancelService : 拆分任务并且发mq--splitBatchCancelSkuTaskAndSendMq
+activate DiscountCancelService
+DiscountCancelService -> ActivityDomainService : 先查活动--getActivityById
+activate ActivityDomainService
+ActivityDomainService --> DiscountCancelService
+deactivate ActivityDomainService
+DiscountCancelService -> DiscountCancelService : 1.1、sku-勾选--processBatchCancelForCheckedSku
+activate DiscountCancelService
+DiscountCancelService -> DiscountCancelService : 查DB-skuDetail--querySkuDetailListFromDbForCheckedSkuList
+activate DiscountCancelService
+DiscountCancelService -> SkuDetailRepository : querySkuListBySubActIdList
+activate SkuDetailRepository
+SkuDetailRepository --> DiscountCancelService
+deactivate SkuDetailRepository
+
+deactivate DiscountCancelService
+DiscountCancelService -> CancelService : 插入task_detail&sub_detail&发mq--operateDbAndSendMq
+activate CancelService
+CancelService --> DiscountCancelService
+deactivate CancelService
+
+deactivate DiscountCancelService
+DiscountCancelService -> DiscountCancelService : 1.2、sku- condition--processBatchCancelForConditionSku
+activate DiscountCancelService
+DiscountCancelService -> ApplyResultService : 查当前账号全部已申请过的除待审核外的poiIdList--getValidPoiList
+activate ApplyResultService
+ApplyResultService --> DiscountCancelService
+deactivate ApplyResultService
+DiscountCancelService -> ApplyResultService : 计算可以取消的sku状态--calCanOperateStatus
+activate ApplyResultService
+ApplyResultService --> DiscountCancelService
+deactivate ApplyResultService
+DiscountCancelService -> SkuDetailESRepository : 查ES(但是每个poi维度查一遍)--queryForDetail
+activate SkuDetailESRepository
+SkuDetailESRepository --> DiscountCancelService
+deactivate SkuDetailESRepository
+DiscountCancelService -> CancelService : 插入task_detail&sub_detail&发mq--operateDbAndSendMq
+activate CancelService
+CancelService --> DiscountCancelService
+deactivate CancelService
+
+deactivate DiscountCancelService
+DiscountCancelService -> DiscountCancelService : 处理结果--handleBatchCancelSkuResult
+activate DiscountCancelService
+
+deactivate DiscountCancelService
+
+deactivate DiscountCancelService
+DiscountCancelService -> DiscountCancelService : 2、处理poi维度任务--splitBatchCancelPoiTask
+activate DiscountCancelService
+DiscountCancelService -> ActivityDomainService : 先查活动--getActivityById
+activate ActivityDomainService
+ActivityDomainService --> DiscountCancelService
+deactivate ActivityDomainService
+DiscountCancelService -> ApplyResultService : 查可操作的sku状态列表--getCanOperateSkuStatusList
+activate ApplyResultService
+ApplyResultService --> DiscountCancelService
+deactivate ApplyResultService
+DiscountCancelService -> DiscountCancelService : 2.1、处理poi-勾选--processBatchCancelForCheckedPoi
+activate DiscountCancelService
+DiscountCancelService -> SkuDetailRepository : 查DB-skuDetail--querySimpleSkuListForDiscount
+activate SkuDetailRepository
+SkuDetailRepository --> DiscountCancelService
+deactivate SkuDetailRepository
+DiscountCancelService -> CancelService : 插入task_detail&sub_detail&发mq--operateDbAndSendMq
+activate CancelService
+CancelService --> DiscountCancelService
+deactivate CancelService
+
+deactivate DiscountCancelService
+DiscountCancelService -> ApplyResultService : 2.2、处理poi-condition-先缩小poiId范围--getValidPoiList
+activate ApplyResultService
+ApplyResultService --> DiscountCancelService
+deactivate ApplyResultService
+DiscountCancelService -> DiscountCancelService : 处理poi-condition--processBatchCancelForConditionPoi
+activate DiscountCancelService
+DiscountCancelService -> ApplyResultService : 查ES-poiIdList--queryAggregatePoiBySubActId
+activate ApplyResultService
+ApplyResultService -> SkuDetailESRepository : groupByPoiAndSubActId
+activate SkuDetailESRepository
+SkuDetailESRepository --> ApplyResultService
+deactivate SkuDetailESRepository
+ApplyResultService --> DiscountCancelService
+deactivate ApplyResultService
+DiscountCancelService -> SkuDetailRepository : 查DB-skuDetail--querySimpleSkuListForDiscount
+activate SkuDetailRepository
+SkuDetailRepository --> DiscountCancelService
+deactivate SkuDetailRepository
+DiscountCancelService -> CancelService : 插入task_detail&sub_detail&发mq--operateDbAndSendMq
+activate CancelService
+CancelService --> DiscountCancelService
+deactivate CancelService
+
+deactivate DiscountCancelService
+DiscountCancelService -> DiscountCancelService : 处理结果--handleBatchCancelSkuResult
+activate DiscountCancelService
+deactivate DiscountCancelService
+deactivate DiscountCancelService
+return
+@enduml

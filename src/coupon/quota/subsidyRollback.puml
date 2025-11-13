@@ -1,0 +1,98 @@
+@startuml
+skinparam sequence {
+ArrowColor black
+LifeLineBorderColor black
+LifeLineBackgroundColor khaki
+ParticipantBackgroundColor lightgoldenrodyellow
+}
+
+
+participant 库存服务
+participant 库存回滚MQ
+participant task服务
+participant 补贴库存服务
+participant 配置Squirrel
+participant 补贴库存Squirrel
+participant 分布式锁Squirrel
+participant 库存流水DB
+participant 库存耗尽恢复通知MQ
+
+库存服务 -> 库存服务 : 构建回滚参数
+
+库存服务 -> 库存回滚MQ : 发送回滚MQ
+activate 库存回滚MQ
+库存回滚MQ --> 库存服务
+deactivate 库存回滚MQ
+
+task服务 -> 库存回滚MQ : 监听到回滚消息
+activate 库存回滚MQ
+库存回滚MQ --> task服务
+deactivate 库存回滚MQ
+
+task服务 -> task服务 : 并发执行回滚操作
+activate task服务
+    task服务 -> 分布式锁Squirrel : 获取锁(atomicKey_bizId_idempotentSign_bizType_bizId)
+    activate 分布式锁Squirrel
+        分布式锁Squirrel --> task服务
+    deactivate 分布式锁Squirrel
+
+    opt 获取锁失败
+        task服务 -> task服务 : 消费成功（少回滚，少卖，问题不大）
+    end
+
+    task服务 -> 配置Squirrel : 查询库存rule配置
+    activate 配置Squirrel
+        配置Squirrel --> task服务
+    deactivate 配置Squirrel
+
+    task服务 -> task服务: 循环处理每个 quotaType
+    activate task服务
+        opt 若 rule 不在有效期内
+            task服务 -> task服务 : 跳过回滚此 quotaType
+        end
+
+        opt 判断若非当日扣减请求
+            task服务 -> task服务 : 跳过日库存 quotaType
+        end
+
+        task服务 -> 补贴库存服务 : 回滚补贴库存逻辑
+        activate 补贴库存服务
+            补贴库存服务 --> 补贴库存Squirrel: 查询补贴库存是否已耗尽，用于发送恢复通知
+            activate 补贴库存Squirrel
+                补贴库存Squirrel --> 补贴库存服务
+            deactivate 补贴库存Squirrel
+
+            补贴库存服务 -> 库存流水DB: 查询流水记录
+            opt 判断若无扣减记录 || 已回滚
+                补贴库存服务 -> 补贴库存服务: 跳过回滚
+            end
+
+            补贴库存服务 -> 库存流水DB:写DB回滚记录status=0
+            activate 库存流水DB
+                库存流水DB --> 补贴库存服务
+            deactivate 库存流水DB
+
+            补贴库存服务 -> 补贴库存Squirrel: 执行回滚操作
+            activate 补贴库存Squirrel
+                补贴库存Squirrel --> 补贴库存服务
+            deactivate 补贴库存Squirrel
+
+            opt 若回滚成功
+                补贴库存服务 -> 库存流水DB: 更新回滚记录status=1
+                activate 库存流水DB
+                    库存流水DB --> 补贴库存服务
+                deactivate 库存流水DB
+
+                opt 判断若回滚前补贴库存已耗尽
+                    补贴库存服务 -> 库存耗尽恢复通知MQ: 发送库存恢复通知
+                    activate 库存耗尽恢复通知MQ
+                        库存耗尽恢复通知MQ --> 补贴库存服务
+                    deactivate 库存耗尽恢复通知MQ
+                end
+            end
+        deactivate 补贴库存服务
+    deactivate
+
+deactivate task服务
+
+@enduml

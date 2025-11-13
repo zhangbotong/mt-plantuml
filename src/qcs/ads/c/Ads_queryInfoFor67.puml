@@ -1,0 +1,18 @@
+@startuml
+skinparam sequence {
+ArrowColor black
+LifeLineBorderColor black
+LifeLineBackgroundColor khaki
+ParticipantBackgroundColor lightgoldenrodyellow
+}
+participant user
+participant 金服
+participant MQ
+participant 活动
+participant ad
+participant squirrel
+
+activate user
+    user -> ad :
+
+@enduml

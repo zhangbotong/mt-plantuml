@@ -1,0 +1,29 @@
+@startuml
+skinparam sequence {
+ArrowColor black
+LifeLineBorderColor black
+LifeLineBackgroundColor khaki
+ParticipantBackgroundColor lightgoldenrodyellow
+}
+
+participant 前端
+participant 广告
+participant 聚合页
+
+activate 前端
+    前端 -> 广告: 请求广告类型55(行中异地卡片)
+        activate 广告
+        广告 -> 广告: 城市、周期、生效时段、渠道、\n频次、人群、实验、本异地等过滤
+        广告 -> 聚合页: 根据聚合页id获取聚合页配置和数据
+        activate 聚合页
+            聚合页 --> 广告: 聚合页配置和数据
+        deactivate 聚合页
+        广告 -> 广告: 只保留【异地活动卡】第一个组件，\n过滤掉其他组件
+        opt 若过滤后组件为空
+            广告 -> 广告: 过滤该广告
+        end
+        广告 -> 前端: 广告数据返回
+        deactivate 广告
+deactivate 前端
+
+@enduml

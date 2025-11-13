@@ -1,0 +1,80 @@
+@startuml
+skinparam sequence {
+ArrowColor black
+LifeLineBorderColor black
+LifeLineBackgroundColor khaki
+ParticipantBackgroundColor lightgoldenrodyellow
+}
+
+activate capi
+capi -> ads: 广告位置code、用户信息、设备信息、渠道城市id, 经纬度等信息
+activate ads
+ads -> ads: 参数校验
+ads -> 订单: 查询车型、商、起终点、是否企业打车等信息
+activate 订单
+订单 --> ads
+deactivate 订单
+ads -> ads: 参数转化
+ads -> ads: 企业广告熔断
+ads -> ads: 根据入参的广告 location code从缓存查询广告数据
+ads -> ads: 过滤：周期、生效时段、城市、渠道、未登录
+ads -> lbs: 根据区域、地理围栏过滤广告
+activate lbs
+lbs --> ads
+deactivate lbs
+ads -> 城市空白组: 城市空白组过滤
+activate 城市空白组
+城市空白组 --> ads
+deactivate 城市空白组
+ads -> ads: 车型品类过滤(广义上的品类,包括服务商、pci等不同粒度的过滤)
+ads -> 实验: 城市空白组过滤
+activate 实验
+实验 --> ads
+deactivate 实验
+ads -> ads: 客户端版本过滤
+ads -> 红包: 券提醒过滤
+activate 红包
+红包 --> ads
+deactivate 红包
+ads -> 实验: 广告关联实验过滤
+activate 实验
+实验 --> ads
+deactivate 实验
+ads -> ads: 频次过滤
+ads -> 外部数据源: 聚合外部数据源数据并过滤(红包数据、任务数据、套餐数据、里程数据等）
+activate 外部数据源
+外部数据源 --> ads
+deactivate 外部数据源
+ads -> adanos: 人群、新老客过滤
+activate adanos
+adanos --> ads
+deactivate adanos
+ads -> Horizon实验平台: Horizon 实验过滤
+activate Horizon实验平台
+Horizon实验平台 --> ads
+deactivate Horizon实验平台
+ads -> 活动: 异地权益卡信息查询及广告过滤
+activate 活动
+活动 --> ads
+deactivate 活动
+ads -> 活动: 异地权益 noticebar 广告数据查询及过滤
+activate 活动
+活动 --> ads
+deactivate 活动
+ads -> 策略: 策略过滤
+activate 策略
+策略 --> ads
+deactivate 策略
+ads -> ads: 排序
+ads -> ads: 帧数据组装，可拼装返回不同帧，相同帧只取第一个（优先级最高）
+opt 若有天降、渠道领券广告
+    ads -> ads: 天降领券、渠道领券
+end
+opt 若有金刚位广告
+    ads -> ads: 金刚位广告封装、去重
+end
+ads --> capi: 广告数据
+deactivate ads
+deactivate capi
+
+@enduml

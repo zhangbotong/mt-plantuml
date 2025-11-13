@@ -1,0 +1,123 @@
+@startuml
+skinparam sequence {
+ArrowColor black
+LifeLineBorderColor black
+LifeLineBackgroundColor khaki
+ParticipantBackgroundColor lightgoldenrodyellow
+}
+
+participant Actor
+Actor -> CancelService : batchCancelSkuList
+activate CancelService
+CancelService -> ActivityDomainService : 查询活动信息--getActivityById
+activate ActivityDomainService
+ActivityDomainService --> CancelService
+deactivate ActivityDomainService
+CancelService -> ApplyResultService : 查询可以操作的状态列表--calCanOperateStatus
+activate ApplyResultService
+ApplyResultService --> CancelService
+deactivate ApplyResultService
+CancelService -> ApplyResultService : 查询账户下已申请poi列表--getValidPoiList
+activate ApplyResultService
+ApplyResultService --> CancelService
+deactivate ApplyResultService
+CancelService -> BatchTaskService : 校验重复操作--checkRepeatOperate
+activate BatchTaskService
+BatchTaskService --> CancelService
+deactivate BatchTaskService
+CancelService -> CancelService : 校验操作权限--actAndActionCheck
+activate CancelService
+CancelService --> CancelService
+deactivate CancelService
+CancelService -> LockService : tryLock
+activate LockService
+LockService --> CancelService
+deactivate LockService
+CancelService -> TaskRecordRepository : addTask
+activate TaskRecordRepository
+TaskRecordRepository -> CancelService : () ->
+activate CancelService
+CancelService -> CancelService : 批量删除处理主方法--dealBatchCancelSku
+activate CancelService
+CancelService -> CancelService : 拆分任务--splitBatchCancelSkuTask
+activate CancelService
+CancelService -> ActivityDomainService : getActivityById
+activate ActivityDomainService
+ActivityDomainService --> CancelService
+deactivate ActivityDomainService
+CancelService -> CancelService : 【勾选批量取消】：查询skuDetail列表--queryFromDb
+activate CancelService
+CancelService --> CancelService
+deactivate CancelService
+CancelService -> CancelService : 【勾选批量取消】：operateDbAndSendMq
+activate CancelService
+CancelService -> TaskDetailDomainService : 【勾选批量取消】：插入数据库--insertTaskDetail
+activate TaskDetailDomainService
+TaskDetailDomainService --> CancelService
+deactivate TaskDetailDomainService
+CancelService -> CancelService : 【勾选批量取消】：插入subDetail数据库并发送MQ--fillSubDetailForCancelPoiAndSelectedSkuList
+activate CancelService
+CancelService -> SubDetailDomainService : 【勾选批量取消】：查询subDetail数据是否已存在--querySkuIdIfExistFromMaster
+activate SubDetailDomainService
+SubDetailDomainService --> CancelService
+deactivate SubDetailDomainService
+CancelService -> SubDetailDomainService : 【勾选批量取消】：批量写入 subDetail 表数据--batchInsert
+activate SubDetailDomainService
+SubDetailDomainService --> CancelService
+deactivate SubDetailDomainService
+CancelService -> CancelService : 【勾选批量取消】：发MQ--sendMq
+activate CancelService
+deactivate CancelService
+deactivate CancelService
+deactivate CancelService
+CancelService -> ApplyResultService : 【筛选条件批量取消】：查询账户下已申请poi列表-getValidPoiList
+activate ApplyResultService
+ApplyResultService --> CancelService
+deactivate ApplyResultService
+CancelService -> ApplyResultService : 【筛选条件批量取消】：查询可以操作的状态列表--calCanOperateStatus
+activate ApplyResultService
+ApplyResultService --> CancelService
+deactivate ApplyResultService
+CancelService -> SkuDetailESRepository : 【筛选条件批量取消】：查询符合筛选条件的skuDetail列表--queryForDetail
+activate SkuDetailESRepository
+SkuDetailESRepository --> CancelService
+deactivate SkuDetailESRepository
+CancelService -> CancelService : 【勾选批量取消】：同上--operateDbAndSendMq
+activate CancelService
+deactivate CancelService
+
+CancelService -> TaskDomainService : 【处理数据为0】：更新taskRecord表状态为finish--updateTaskAfterDone
+activate TaskDomainService
+TaskDomainService --> CancelService
+deactivate TaskDomainService
+
+CancelService -> CancelService : 【处理数据为0，外卖活动】--sendNoneCancelToAccount4Wm
+activate CancelService
+CancelService -> NotifyRpcRepository : 【处理数据为0，外卖活动】给商家账号发通知--asyncSendMagByAcctId
+activate NotifyRpcRepository
+NotifyRpcRepository --> CancelService
+deactivate NotifyRpcRepository
+deactivate CancelService
+CancelService -> CancelService : 【处理数据为0，非外卖】sendMqForValidSkuIsEmpty
+activate CancelService
+CancelService -> ExtMessageRPCRepository : 【处理数据为0，非外卖】发送闪购账号维度账号站内信--pubSgAccountApplyMessage
+activate ExtMessageRPCRepository
+ExtMessageRPCRepository --> CancelService
+deactivate ExtMessageRPCRepository
+deactivate CancelService
+CancelService -> TaskDomainService : 【处理数据非0】更新task表totalCount字段--updateTotalCount
+activate TaskDomainService
+TaskDomainService --> CancelService
+deactivate TaskDomainService
+deactivate CancelService
+deactivate CancelService
+CancelService --> TaskRecordRepository
+deactivate CancelService
+TaskRecordRepository --> CancelService
+deactivate TaskRecordRepository
+CancelService -> LockService : unLock
+activate LockService
+LockService --> CancelService
+deactivate LockService
+return
+@enduml

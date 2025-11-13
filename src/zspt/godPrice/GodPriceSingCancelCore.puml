@@ -1,0 +1,27 @@
+@startuml
+skinparam sequence {
+ArrowColor black
+LifeLineBorderColor black
+LifeLineBackgroundColor khaki
+ParticipantBackgroundColor lightgoldenrodyellow
+}
+
+participant Actor
+Actor -> SkuCancelDomainServiceImpl : operateDbAndCancel
+activate SkuCancelDomainServiceImpl
+SkuCancelDomainServiceImpl -> PromotionRpcService : 清退单品立减活动？--cancelV2
+activate PromotionRpcService
+PromotionRpcService --> SkuCancelDomainServiceImpl
+deactivate PromotionRpcService
+SkuCancelDomainServiceImpl -> SkuCancelDomainServiceImpl : 更新skuDetail状态为【已取消】-- updateDB
+activate SkuCancelDomainServiceImpl
+SkuCancelDomainServiceImpl -> SkuCancelDomainServiceImpl : 删除组包商品
+activate SkuCancelDomainServiceImpl
+deactivate SkuCancelDomainServiceImpl
+deactivate SkuCancelDomainServiceImpl
+SkuCancelDomainServiceImpl -> XianFuOpLogServce : addCancelSkuAsync
+activate XianFuOpLogServce
+XianFuOpLogServce --> SkuCancelDomainServiceImpl
+deactivate XianFuOpLogServce
+return
+@enduml

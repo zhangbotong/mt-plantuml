@@ -1,0 +1,144 @@
+@startuml
+skinparam sequence {
+ArrowColor black
+LifeLineBorderColor black
+LifeLineBackgroundColor khaki
+
+ParticipantBackgroundColor lightgoldenrodyellow
+'ParticipantFontName Impact
+}
+
+participant Actor
+Actor -> CancelService : cancelSku
+activate CancelService
+CancelService -> ActivityDomainService : 查询活动信息-getActivityById
+activate ActivityDomainService
+ActivityDomainService --> CancelService
+deactivate ActivityDomainService
+CancelService -> ApplyResultService : 查询可操作（取消）的状态列表-getCanOperateSkuStatusList
+activate ApplyResultService
+ApplyResultService --> CancelService
+deactivate ApplyResultService
+CancelService -> CancelService : 校验是否可操作-actAndActionCheck
+activate CancelService
+CancelService --> CancelService
+deactivate CancelService
+CancelService -> ApplyResultService : checkAcct
+activate ApplyResultService
+ApplyResultService -> ApplyResultService : 查询已报名门店列表-getInvitePoiList
+activate ApplyResultService
+ApplyResultService -> AcctPoiRpcImpl : getAllPoiIds
+activate AcctPoiRpcImpl
+AcctPoiRpcImpl --> ApplyResultService
+deactivate AcctPoiRpcImpl
+ApplyResultService -> InvitePoiRecordRepository : queryAppliedPoiIdList
+activate InvitePoiRecordRepository
+InvitePoiRecordRepository --> ApplyResultService
+deactivate InvitePoiRecordRepository
+ApplyResultService --> ApplyResultService
+deactivate ApplyResultService
+ApplyResultService -> ApplyResultService : 校验-poiCheck
+activate ApplyResultService
+ApplyResultService --> ApplyResultService
+deactivate ApplyResultService
+ApplyResultService --> CancelService
+deactivate ApplyResultService
+CancelService -> ApplyResultService : 查询sku--queryOneApplySkuFromDb
+activate ApplyResultService
+ApplyResultService --> CancelService
+deactivate ApplyResultService
+CancelService -> GodPriceDomainServiceImpl : operateDbAndCancel
+activate GodPriceDomainServiceImpl
+
+GodPriceDomainServiceImpl -> LockService : tryLock
+activate LockService
+LockService --> GodPriceDomainServiceImpl
+deactivate LockService
+GodPriceDomainServiceImpl -> PromotionRpcService : 清退单品立减活动？--cancelV2
+activate PromotionRpcService
+PromotionRpcService --> GodPriceDomainServiceImpl
+deactivate PromotionRpcService
+GodPriceDomainServiceImpl -> SkuDetailRepository : 更新skuDetail数据库--updateSkuDetailForCancel
+activate SkuDetailRepository
+SkuDetailRepository --> GodPriceDomainServiceImpl
+deactivate SkuDetailRepository
+GodPriceDomainServiceImpl -> GodPriceDomainServiceImpl : 删除组包商品--deleteProduct
+activate GodPriceDomainServiceImpl
+GodPriceDomainServiceImpl --> GodPriceDomainServiceImpl
+deactivate GodPriceDomainServiceImpl
+GodPriceDomainServiceImpl -> XianFuOpLogServce : 先富操作记录？--addCancelSkuAsync
+activate XianFuOpLogServce
+XianFuOpLogServce --> GodPriceDomainServiceImpl
+deactivate XianFuOpLogServce
+GodPriceDomainServiceImpl -> LockService : unLock
+activate LockService
+LockService --> GodPriceDomainServiceImpl
+deactivate LockService
+GodPriceDomainServiceImpl --> CancelService
+deactivate GodPriceDomainServiceImpl
+CancelService -> CancelService : 拼单--updateDb
+activate CancelService
+CancelService -> SkuCancelDomainService : updateDb
+activate SkuCancelDomainService
+SkuCancelDomainService --> CancelService
+deactivate SkuCancelDomainService
+CancelService --> CancelService
+deactivate CancelService
+CancelService -> CancelService : 取消名酒馆活动？--dealSgFamousPub
+activate CancelService
+CancelService -> SubactivityRepository : getById
+activate SubactivityRepository
+SubactivityRepository --> CancelService
+deactivate SubactivityRepository
+CancelService -> SkuDetailRepository : updateSkuDetailForCancel
+activate SkuDetailRepository
+SkuDetailRepository --> CancelService
+deactivate SkuDetailRepository
+CancelService -> SubsidyDomainService : checkSkuHasSubsidy
+activate SubsidyDomainService
+SubsidyDomainService --> CancelService
+deactivate SubsidyDomainService
+CancelService -> CancelService : lockKey
+activate CancelService
+CancelService --> CancelService
+deactivate CancelService
+CancelService -> LockService : tryLock
+activate LockService
+LockService --> CancelService
+deactivate LockService
+CancelService -> AirSkuRpcService : batchDeleteSku
+activate AirSkuRpcService
+AirSkuRpcService --> CancelService
+deactivate AirSkuRpcService
+CancelService -> PromotionRpcService : cancelV2
+activate PromotionRpcService
+PromotionRpcService --> CancelService
+deactivate PromotionRpcService
+CancelService -> SkuDetailDomainService : checkPoiLastValidSku
+activate SkuDetailDomainService
+SkuDetailDomainService -> CancelService : () ->
+activate CancelService
+CancelService -> CancelService : cancelWithPoi
+activate CancelService
+CancelService -> ActivityDomainService : getActivityById
+activate ActivityDomainService
+ActivityDomainService --> CancelService
+deactivate ActivityDomainService
+CancelService --> CancelService
+deactivate CancelService
+CancelService --> SkuDetailDomainService
+deactivate CancelService
+SkuDetailDomainService --> CancelService
+deactivate SkuDetailDomainService
+CancelService -> SkuDetailRepository : updateSkuDetailForCancel
+activate SkuDetailRepository
+SkuDetailRepository --> CancelService
+deactivate SkuDetailRepository
+CancelService -> LockService : unLock
+activate LockService
+LockService --> CancelService
+deactivate LockService
+CancelService --> CancelService
+deactivate CancelService
+return
+@enduml
