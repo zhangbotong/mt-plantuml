@@ -1,0 +1,72 @@
+@startuml
+skinparam DatabaseBackgroundColor lightgoldenrodyellow
+skinparam EntityBackgroundColor lightgoldenrodyellow
+skinparam sequence {
+    ArrowColor black
+    LifeLineBorderColor black
+    LifeLineBackgroundColor khaki
+    ParticipantBackgroundColor lightgoldenrodyellow
+}
+
+participant "QuotaAtomicRollBackListener" as QARL
+participant "QuotaRollbackRecordService" as QRRS
+participant "QuotaFlowComponent" as QFC
+participant "ClcQuotaDeductDomainServiceImpl" as CQDSI
+participant "SubsidyQuotaRollbackService" as SQRS
+participant "ClcCouponQuotaServerThriftProxy" as CCQSTP
+
+QARL -> QARL++: 单个RuleBindKey回滚-processSingleRuleBindKeyRollback
+
+QARL -> QARL++--: 获取分布式锁
+
+group 查询回滚记录阶段
+    QARL -> QRRS++: 1.批量查询并判断是否已有 squirrel 回滚记录，若有则直接返回成功-batchGetRollbackRecord\n（适用配置库存，补贴有自己的DB回滚记录和相应判断）
+    return
+end
+
+group 补贴回滚阶段
+    QARL -> QARL++: 2.单个补贴回滚-processSingleSubsidyRollback
+        QARL -> SQRS++: 2.1.执行补贴回滚-executeRollback
+        return
+    deactivate
+end
+
+group 配置库存回滚阶段
+    QARL -> QARL++: 3.单个配置回滚-processSingleConfigRollback
+        QARL -> QFC++: 3.1.批量查询cellar流水，若无流水则返回失败-batchGetQuotaFlow
+        return
+
+        QARL -> QARL++: 3.2.写squirrel回滚记录和删除cellar流水-dealConfigRollbackRecordAndFlow
+        deactivate
+
+        QARL -> QRRS++: 3.3.批量保存回滚记录-batchSaveQuotaRollBackRecord
+        return
+
+        QARL -> QFC++: 3.4.批量删除配置流水-batchDelQuotaFlow
+        return
+
+        QARL -> QARL++: 3.5.普通配置库存回滚-doNormalConfigQuotaRollBack
+        deactivate
+
+        QARL -> QARL++: 3.6.热点配置库存回滚-doShardConfigQuotaRollBack
+        deactivate
+    deactivate
+end
+
+group 用户库存回滚阶段
+    QARL -> QARL++: 4.单个用户回滚-processSingleUserRollback
+
+        QARL -> QRRS++: 4.2.写 squirrel 回滚记录(dealUserRollbackRecord)-batchSaveQuotaRollBackRecord
+        return
+
+        QARL -> CCQSTP++: 4.3.调 server 批量原子回滚用户库存-batchAtomicRollbackUserQuota
+        return
+    deactivate
+end
+
+QARL -> QARL++--: 释放分布式锁
+
+deactivate
+
+@enduml
+
