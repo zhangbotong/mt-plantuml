@@ -1,0 +1,28 @@
+@startuml
+skinparam DatabaseBackgroundColor lightgoldenrodyellow
+skinparam EntityBackgroundColor lightgoldenrodyellow
+skinparam sequence {
+    ArrowColor black
+    LifeLineBorderColor black
+    LifeLineBackgroundColor khaki
+    ParticipantBackgroundColor lightgoldenrodyellow
+}
+
+participant "ClcQuotaDeductDomainServiceImpl" as CQDSI
+participant "QuotaConsumedQueryService" as QCQS
+
+CQDSI -> CQDSI++: 库存校验接口-batchValidateQuota
+
+CQDSI -> CQDSI++--: 入参过滤-filterNeedValidateReq
+
+CQDSI -> QCQS++: 1.查询库存-batchQueryQuotaDeducted
+    QCQS -> QCQS++--: 1.1.单独查补贴库存-processSubsidyQuotaKeys
+    QCQS -> QCQS++--: 1.2.查询配置&用户库存-queryStock
+return
+
+CQDSI -> CQDSI++--: 3.单个库存校验-validateSingleQuota
+
+deactivate
+
+@enduml
+

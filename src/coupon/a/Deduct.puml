@@ -20,14 +20,14 @@ participant "ShardQuotaKvService" as SQKS
 CQDSI -> CQDSI++: 库存扣减接口-batchAtomicDeductQuota
 
 group 查询校验阶段
-    CQDSI -> CQDSI++--: 1.参数校验-validateAndCollectFailedDeductResponses
+    CQDSI -> CQDSI++--: 1.入参校验-validateAndCollectFailedDeductResponses
 
     CQDSI -> QCQS++: 2.查询库存-queryConsumedStock
         QCQS -> QCQS++--: 2.1.单独查补贴库存-processSubsidyQuotaKeys
         QCQS -> QCQS++--: 2.2.查询配置&用户库存-queryStock
     return
 
-    CQDSI -> CQDSI++--: 3.校验-batchValidateQuota
+    CQDSI -> CQDSI++--: 3.复用校验接口（带查询结果，不会重复查询）-batchValidateQuota
     CQDSI -> CQDSI++--: 4.处理校验结果-processAtomicDeductInfoList
 end
 
@@ -39,8 +39,8 @@ group 扣减阶段
         CQDSI -> CQDSI++: 5.2.扣减配置&用户维度-atomicDeductQuotas
 
             group 查询已扣减库存
-                CQDSI -> CQDSI++: 5.2.1.查询已扣减库存-queryQuotaDeductedDetail
-                    CQDSI -> SQQS++: 5.2.1.1.查询补贴已扣减库存-querySubsidyQuotaConsumed
+                CQDSI -> CQDSI++: 5.2.1.查询已扣减库存（扣减、回滚复用方法）-queryQuotaDeductedDetail
+                    CQDSI -> SQQS++: 5.2.1.1.查询补贴已扣减库存（回滚需要用）-querySubsidyQuotaConsumed
                     return
                     CQDSI -> QDKBC++: 5.2.1.2.查配置普通已扣减库存-batchQueryHasDeductedQuota
                     return
@@ -52,6 +52,7 @@ group 扣减阶段
 
             group 执行扣减
                 CQDSI -> CQDSI++: 5.2.2.配置库存扣减&失败回退-atomicDeductConfigQuota
+                    ' 当校验时2个地域库存都充足时，若一个地域扣减失败，会重试另一个地域；
                     CQDSI -> QDKBC++: 5.2.2.1.扣减配置普通-atomicQuotaBatchDeductNormalConfig
                     return
                     CQDSI -> SQKS++: 5.2.2.2.扣减配置热点-batchDeduct
