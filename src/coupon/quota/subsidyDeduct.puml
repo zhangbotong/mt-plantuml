@@ -8,13 +8,13 @@ ParticipantBackgroundColor lightgoldenrodyellow
 
 
 participant 库存服务
-participant 配置Squirrel
-participant 补贴库存Squirrel
-participant 分布式锁Squirrel
-participant 库存流水DB
-participant 写DB流水MQ
+entity 配置Squirrel
+entity 补贴库存Squirrel
+entity 分布式锁Squirrel
+database 库存流水DB
+queue 写DB流水MQ
 participant task服务
-participant 库存耗尽恢复通知MQ
+queue 库存耗尽恢复通知MQ
 
 库存服务 -> 配置Squirrel : 查库存rule配置
 activate 配置Squirrel
@@ -32,20 +32,35 @@ opt 库存不足
     库存服务 -> 库存服务 : 返回扣减失败
 end
 
-库存服务 -> 库存服务 : 准备扣减参数
+库存服务 -> 库存流水DB: 查流水记录该幂等号是否已扣减过
+activate 库存流水DB
+库存流水DB --> 库存服务
+deactivate 库存流水DB
 
-库存服务 -> 分布式锁Squirrel : 获取锁(bizId + bizType + quotaType)
-activate 分布式锁Squirrel
-分布式锁Squirrel --> 库存服务
-deactivate 分布式锁Squirrel
-
-opt 获取锁失败
-    库存服务 -> 库存服务 : 返回扣减失败
+opt 已存在扣减记录
+库存服务 -> 库存服务: 返回扣减失败（重复扣减）
 end
 
-库存服务 -> 补贴库存Squirrel : 扣减补贴库存
+库存服务 -> 库存服务 : 准备扣减参数
+
+库存服务 -> 分布式锁Squirrel:获取扣减分布式锁
+activate 分布式锁Squirrel
+    分布式锁Squirrel --> 库存服务
+deactivate 分布式锁Squirrel
+
+opt 若未获取到扣减分布式锁
+    库存服务 -> 库存服务: 返回未获取到扣减分布式锁
+end
+
+库存服务 -> 补贴库存Squirrel : lua脚本扣减补贴库存
 activate 补贴库存Squirrel
-补贴库存Squirrel --> 库存服务
+    opt 查询若库存不足本次扣减
+        补贴库存Squirrel -> 补贴库存Squirrel: 返回库存不足
+    end
+
+    补贴库存Squirrel -> 补贴库存Squirrel: 扣减库存
+    补贴库存Squirrel -> 补贴库存Squirrel: 设置缓存流水记录
+    补贴库存Squirrel --> 库存服务
 deactivate 补贴库存Squirrel
 
 opt 区域库存不足
@@ -55,7 +70,7 @@ opt 区域库存不足
    deactivate 补贴库存Squirrel
 end
 
-alt 扣减成功部分（含全部成功&部分成功部分）
+alt 全部quotaType扣减成功
     库存服务 -> 写DB流水MQ : 发送写流水MQ
     activate 写DB流水MQ
         写DB流水MQ --> 库存服务
@@ -76,7 +91,12 @@ alt 扣减成功部分（含全部成功&部分成功部分）
             库存流水DB --> task服务
         deactivate 库存流水DB
     deactivate task服务
-else 扣减失败/超时部分
+else 部分扣减失败/超时
+    库存服务 -> 写DB流水MQ : 成功部分quotaType发送写流水MQ
+    activate 写DB流水MQ
+        写DB流水MQ --> 库存服务
+    deactivate 写DB流水MQ
+
     库存服务 -> 补贴库存Squirrel : 回滚扣减成功部分
     activate 补贴库存Squirrel
         补贴库存Squirrel --> 库存服务
@@ -95,6 +115,8 @@ else 扣减失败/超时部分
         deactivate 库存流水DB
     deactivate task服务
 
+    库存服务 -> 库存服务 : 返回扣减失败原因
+else 全部扣减失败
     库存服务 -> 库存服务 : 返回扣减失败原因
 end
 

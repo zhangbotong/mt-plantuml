@@ -1,0 +1,42 @@
+@startuml
+skinparam sequence {
+ArrowColor black
+LifeLineBorderColor black
+LifeLineBackgroundColor khaki
+ParticipantBackgroundColor lightgoldenrodyellow
+}
+
+
+participant 库存服务
+entity 分布式锁squirrel
+database 流水DB
+
+库存服务 -> 流水DB: 查看是否有该流水（扣减or回滚）
+activate 流水DB
+    流水DB --> 库存服务
+deactivate 流水DB
+
+alt 有流水记录
+    库存服务 -> 库存服务: 消费完成
+else 无流水记录
+    库存服务 -> 分布式锁squirrel: 获取分布式锁
+activate 分布式锁squirrel
+    分布式锁squirrel --> 库存服务
+deactivate 分布式锁squirrel
+
+alt 锁成功
+    库存服务 -> 流水DB: 写流水
+    activate 流水DB
+    流水DB --> 库存服务
+    deactivate 流水DB
+else 锁失败
+    库存服务 -> 库存服务: 消费完成(重复mq)
+end
+
+库存服务 -> 分布式锁squirrel: 释放分布式锁
+activate 分布式锁squirrel
+    分布式锁squirrel --> 库存服务
+deactivate 分布式锁squirrel
+end
+
+@enduml

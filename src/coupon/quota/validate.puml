@@ -1,0 +1,48 @@
+@startuml
+skinparam DatabaseBackgroundColor lightgoldenrodyellow
+skinparam EntityBackgroundColor lightgoldenrodyellow
+skinparam sequence {
+    ArrowColor black
+    LifeLineBorderColor black
+    LifeLineBackgroundColor khaki
+    ParticipantBackgroundColor lightgoldenrodyellow
+}
+
+participant 库存server服务 as QS
+database 库存DB as DB
+entity squirrel普通 as SN
+entity squirrel热点 as SH
+entity 补贴squirrel as SS
+entity setCellar as SC
+entity centerCellar as CC
+
+QS -> DB++: 查询库存rule配置
+return
+
+QS -> QS: 分别组装【squirrel普通】、【squirrel热点】、\n【setCellar】、【centerCellar】、\n【补贴】查询storyKeyList
+
+group 多线程查询缓存
+    alt 线程A
+        QS -> SN++: 查询squirrel普通缓存
+        return
+    end
+    alt 线程B
+        QS -> SH++: 查询squirrel热点缓存
+        return
+    end
+    alt 线程C
+        QS -> SS++: 查询补贴squirrel缓存
+        return
+    end
+    alt 线程D
+        QS -> SC++: 查询setCellar缓存
+        return
+    end
+    alt 线程E
+        QS -> CC++: 查询centerCellar缓存
+        return
+    end
+end
+
+QS -> QS: 逐个校验剩余库存是否充足
+@enduml

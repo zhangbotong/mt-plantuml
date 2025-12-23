@@ -8,14 +8,14 @@ ParticipantBackgroundColor lightgoldenrodyellow
 
 
 participant 库存服务
-participant 库存回滚MQ
+queue 库存回滚MQ
 participant task服务
 participant 补贴库存服务
-participant 配置Squirrel
-participant 补贴库存Squirrel
-participant 分布式锁Squirrel
-participant 库存流水DB
-participant 库存耗尽恢复通知MQ
+entity 配置Squirrel
+entity 补贴库存Squirrel
+entity 分布式锁Squirrel
+database 库存流水DB
+queue 库存耗尽恢复通知MQ
 
 库存服务 -> 库存服务 : 构建回滚参数
 
@@ -55,17 +55,22 @@ activate task服务
             task服务 -> task服务 : 跳过日库存 quotaType
         end
 
-        task服务 -> 补贴库存服务 : 回滚补贴库存逻辑
+        task服务 -> 补贴库存服务 : 回滚补贴库存逻辑\n（bizId + bizType + idempotentSign 维度）
         activate 补贴库存服务
-            补贴库存服务 --> 补贴库存Squirrel: 查询补贴库存是否已耗尽，用于发送恢复通知
+            补贴库存服务 -> 库存流水DB: 查询流水记录
+            activate 库存流水DB
+                库存流水DB -> 补贴库存服务
+            deactivate 库存流水DB
+            补贴库存服务 -> 补贴库存服务: 过滤无需回滚的数据（无扣减记录或有回滚记录）
+
+            补贴库存服务 -> 补贴库存Squirrel: 查询已消耗库存
             activate 补贴库存Squirrel
                 补贴库存Squirrel --> 补贴库存服务
             deactivate 补贴库存Squirrel
 
-            补贴库存服务 -> 库存流水DB: 查询流水记录
-            opt 判断若无扣减记录 || 已回滚
-                补贴库存服务 -> 补贴库存服务: 跳过回滚
-            end
+            补贴库存服务 -> 补贴库存服务: 检查回滚前已耗尽的quotaTypeSet，用于发送恢复通知
+
+            补贴库存服务 -> 补贴库存服务: 根据已扣库存，确定回滚区域
 
             补贴库存服务 -> 库存流水DB:写DB回滚记录status=0
             activate 库存流水DB

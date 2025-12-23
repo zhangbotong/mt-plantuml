@@ -1,0 +1,33 @@
+@startuml
+'https://plantuml.com/sequence-diagram
+participant 一体化M端 as C order 5
+participant 库存M端 as S order 10
+participant squirrel as R order 20
+database 库存DB as D order 30
+participant 日志中心 as L order 40
+
+C -> S++:test
+return
+
+C -> S++: 批量新增/修改库存
+S -> S: 参数完整性校验
+S -> R++: 加锁【biz_type_biz_id】
+return
+S -> D++: 根据biz_type_biz_id查询库存信息【查主】
+return
+
+S -> S: 根据查询后的配额信息组装写入DB信息
+note left
+    分别组装：
+    新增list
+    修改list
+    删除list
+end note
+
+group Transaction
+S -> D++: 批量新增
+S -> D: 批量修改
+S -> D: 批量删除
+end
+
+@enduml

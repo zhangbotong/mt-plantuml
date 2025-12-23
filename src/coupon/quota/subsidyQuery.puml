@@ -8,8 +8,8 @@ ParticipantBackgroundColor lightgoldenrodyellow
 
 
 participant 库存服务
-participant 配置Squirrel
-participant 补贴库存Squirrel
+entity 配置Squirrel
+entity 补贴库存Squirrel
 
 库存服务 -> 配置Squirrel : 查库存rule配置
 activate 配置Squirrel

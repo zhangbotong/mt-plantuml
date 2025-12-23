@@ -1,0 +1,52 @@
+@startuml
+skinparam sequence {
+ArrowColor black
+LifeLineBorderColor black
+LifeLineBackgroundColor khaki
+ParticipantBackgroundColor lightgoldenrodyellow
+}
+
+
+participant 库存服务
+entity 库存squirrel
+database 流水DB
+participant 定时任务
+
+库存服务 -> 流水DB: 查询是否有流水
+activate 流水DB
+流水DB --> 库存服务
+deactivate 流水DB
+opt 有流水
+库存服务 -> 库存服务: 返回失败，重复扣减
+end
+
+库存服务 -> 库存squirrel: lua原子扣减所有quotaType
+activate 库存squirrel
+    opt 校验幂等key未通过
+        库存squirrel -> 库存squirrel:扣减失败
+    end
+    opt 校验库存剩余不足
+        库存squirrel -> 库存squirrel: 扣减失败
+    end
+    库存squirrel -> 库存squirrel: 设置库存消耗值
+    库存squirrel -> 库存squirrel: 设置幂等key
+    库存squirrel -> 库存squirrel: 设置流水记录
+库存squirrel --> 库存服务
+deactivate 库存squirrel
+
+alt squirrel扣减成功
+    库存服务 -> 流水DB: 发MQ写流水
+else squirrel扣减失败或超时
+    库存服务 -> 库存squirrel:回滚成功部分quotaType
+end
+
+定时任务 -> 流水DB:查询30s前写入的流水
+activate 流水DB
+流水DB --> 定时任务
+deactivate 流水DB
+
+定时任务 -> 库存squirrel: 清理30s前的幂等key
+activate 库存squirrel
+库存squirrel --> 定时任务
+deactivate 库存squirrel
+@enduml

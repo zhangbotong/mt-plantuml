@@ -1,0 +1,73 @@
+@startuml
+skinparam DatabaseBackgroundColor lightgoldenrodyellow
+skinparam EntityBackgroundColor lightgoldenrodyellow
+skinparam sequence {
+    ArrowColor black
+    LifeLineBorderColor black
+    LifeLineBackgroundColor khaki
+    ParticipantBackgroundColor lightgoldenrodyellow
+}
+
+participant "ClcQuotaDeductDomainServiceImpl" as CQDSI
+participant "QuotaConsumedQueryService" as QCQS
+participant "QuotaMccConfig" as QMC
+participant "SubsidyQuotaDeductService" as SQDS
+participant "SubsidyQuotaQueryService" as SQQS
+participant "QuotaDeductKvBaseComponent" as QDKBC
+participant "ShardQuotaLocalCacheService" as SQLCS
+participant "ShardQuotaKvService" as SQKS
+
+CQDSI -> CQDSI++: 库存扣减接口-batchAtomicDeductQuota
+
+group 查询校验阶段
+    CQDSI -> CQDSI++--: 1.参数校验-validateAndCollectFailedDeductResponses
+
+    CQDSI -> QCQS++: 2.查询库存-queryConsumedStock
+        QCQS -> QCQS++--: 2.1.单独查补贴库存-processSubsidyQuotaKeys
+        QCQS -> QCQS++--: 2.2.查询配置&用户库存-queryStock
+    return
+
+    CQDSI -> CQDSI++--: 3.校验-batchValidateQuota
+    CQDSI -> CQDSI++--: 4.处理校验结果-processAtomicDeductInfoList
+end
+
+group 扣减阶段
+    CQDSI -> CQDSI++: 5.扣减-atomicDeductQuota
+        CQDSI -> SQDS++: 5.1.扣减补贴维度-deductSubsidyQuota
+        return
+
+        CQDSI -> CQDSI++: 5.2.扣减配置&用户维度-atomicDeductQuotas
+
+            group 查询已扣减库存
+                CQDSI -> CQDSI++: 5.2.1.查询已扣减库存-queryQuotaDeductedDetail
+                    CQDSI -> SQQS++: 5.2.1.1.查询补贴已扣减库存-querySubsidyQuotaConsumed
+                    return
+                    CQDSI -> QDKBC++: 5.2.1.2.查配置普通已扣减库存-batchQueryHasDeductedQuota
+                    return
+                    CQDSI -> SQLCS++: 5.2.1.3.查配置热点已扣减库存-queryBucketQuotaDetail
+                    return
+                    CQDSI -> CQDSI++--: 5.2.1.4.查用户已扣减库存-batchQueryUserHasDeductedQuota
+                deactivate
+            end
+
+            group 执行扣减
+                CQDSI -> CQDSI++: 5.2.2.配置库存扣减&失败回退-atomicDeductConfigQuota
+                    CQDSI -> QDKBC++: 5.2.2.1.扣减配置普通-atomicQuotaBatchDeductNormalConfig
+                    return
+                    CQDSI -> SQKS++: 5.2.2.2.扣减配置热点-batchDeduct
+                    return
+                deactivate
+
+                CQDSI -> CQDSI++--: 5.2.3.扣减用户库存-atomicDeductUserQuota
+            end
+
+        deactivate
+
+    deactivate
+
+    CQDSI -> CQDSI++--: 6.executeParallelDeduct
+end
+
+deactivate
+
+@enduml

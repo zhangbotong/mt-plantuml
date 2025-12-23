@@ -1,0 +1,58 @@
+@startuml
+skinparam sequence {
+ArrowColor black
+LifeLineBorderColor black
+LifeLineBackgroundColor khaki
+ParticipantBackgroundColor lightgoldenrodyellow
+}
+
+
+participant 库存服务
+entity 分布式锁Squirrel
+entity 配置库存squirrel
+entity 补贴库存squirrel
+database 流水DB
+
+库存服务 -> 分布式锁Squirrel: 获取锁(bizId_bizType_idempotentSign)
+activate 分布式锁Squirrel
+分布式锁Squirrel --> 库存服务
+deactivate 分布式锁Squirrel
+
+opt 获取锁失败
+    库存服务 -> 库存服务: 回滚失败
+end
+
+库存服务 -> 配置库存squirrel: 查询库存配置
+activate 配置库存squirrel
+配置库存squirrel --> 库存服务
+deactivate 配置库存squirrel
+
+库存服务 -> 库存服务: 过滤 quotaType
+
+库存服务 -> 流水DB: 查询流水记录
+activate 流水DB
+流水DB --> 库存服务
+deactivate 流水DB
+
+opt 扣减流水不存在或回滚流水已存在
+    库存服务 -> 库存服务: 回滚失败
+end
+
+库存服务 -> 补贴库存squirrel: 回滚补贴库存逻辑
+activate 补贴库存squirrel
+    opt 校验已消耗库存失败
+        补贴库存squirrel -> 补贴库存squirrel: 回滚失败
+    end
+
+    补贴库存squirrel -> 补贴库存squirrel: 设置回滚库存值
+    补贴库存squirrel -> 补贴库存squirrel: 设置回滚流水记录
+补贴库存squirrel --> 库存服务
+
+alt 回滚成功
+    库存服务 -> 流水DB: 发MQ更新回滚流水
+else 回滚失败
+    库存服务 -> 库存服务: 回滚失败
+end
+deactivate 补贴库存squirrel
+
+@enduml
