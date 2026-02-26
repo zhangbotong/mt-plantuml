@@ -1,0 +1,40 @@
+@startuml
+skinparam DatabaseBackgroundColor #FFE6F0
+skinparam EntityBackgroundColor #FFE6F0
+skinparam sequence {
+    ArrowColor black
+    LifeLineBorderColor black
+    LifeLineBackgroundColor #FFE6F0
+    ParticipantBackgroundColor #FFE6F0
+}
+
+participant 公共恢复方法 as REC
+entity 分布式锁 as DL
+entity rule缓存 as RC
+database ruleDB as DB
+entity 补贴库存耗尽恢复通知MQ as SMQ
+
+REC -> REC: 入参校验：bizKey、quotaType
+
+REC -> REC: 过滤掉无需更新耗尽标识的ruleType\n（仅支持总库存、总金额、日库存、日金额）
+
+REC -> RC++: 查询 rule 缓存
+return
+
+REC -> REC: 过滤掉已更新耗尽标识的rule
+
+REC -> DL++: 加分布式锁（bizKey+quotaType）
+return
+
+REC -> DB++: 更新rule.depleted_time = 当前日期0点毫秒时间戳/0
+return
+
+REC -> RC++: 更新rule缓存
+return
+
+alt #E6FFE6 若是补贴库存
+    REC -> SMQ: 发送MQ通知补贴库存状态变更【**耗尽/恢复**】
+end
+
+REC -> DL: 释放锁
+@enduml

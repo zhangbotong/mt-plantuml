@@ -8,41 +8,43 @@ skinparam sequence {
     ParticipantBackgroundColor lightgoldenrodyellow
 }
 
+skinparam note {
+    BackgroundColor #FFE6E6
+}
+
 participant 库存server服务 as QS
-database 库存DB as DB
+entity rule缓存 as DB
 entity squirrel普通 as SN
 entity squirrel热点 as SH
 entity 补贴squirrel as SS
-entity setCellar as SC
-entity centerCellar as CC
+entity peerCellar as PC
 
 QS -> DB++: 查询库存rule配置
 return
 
-QS -> QS: 分别组装【squirrel普通】、【squirrel热点】、\n【setCellar】、【centerCellar】、\n【补贴】查询storyKeyList
-
 group 多线程查询缓存
     alt 线程A
-        QS -> SN++: 查询squirrel普通缓存
+        QS -> SN++: 查询squirrel普通缓存(所有key用pipeline只查一次)
         return
     end
     alt 线程B
-        QS -> SH++: 查询squirrel热点缓存
+        QS -> SH++: 查询squirrel热点缓存(所有key用pipeline只查一次)
         return
     end
     alt 线程C
-        QS -> SS++: 查询补贴squirrel缓存
+        QS -> SS++: 查询补贴squirrel缓存(所有key用pipeline只查一次)
         return
     end
     alt 线程D
-        QS -> SC++: 查询setCellar缓存
-        return
-    end
-    alt 线程E
-        QS -> CC++: 查询centerCellar缓存
+        QS -> PC++: 查询Cellar缓存(所有key用批量查询，只调cellar一次)
         return
     end
 end
 
 QS -> QS: 查询结果封装
+
+note over QS: 耗尽标识处理
+alt 若rule中标识未缓存未耗尽，但实际查询缓存已耗尽
+    QS -> QS: 发MQ异步更新rule耗尽标识
+end
 @enduml

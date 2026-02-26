@@ -8,65 +8,84 @@ skinparam sequence {
     ParticipantBackgroundColor lightgoldenrodyellow
 }
 
-participant "QuotaAtomicRollBackListener" as QARL
-participant "QuotaRollbackRecordService" as QRRS
-participant "QuotaFlowComponent" as QFC
-participant "ClcQuotaDeductDomainServiceImpl" as CQDSI
-participant "SubsidyQuotaRollbackService" as SQRS
-participant "ClcCouponQuotaServerThriftProxy" as CCQSTP
+skinparam note {
+    BackgroundColor #FFE6E6
+}
 
-QARL -> QARL++: 单个RuleBindKey回滚-processSingleRuleBindKeyRollback
+participant 任务服务 as TS
+entity 分布式锁 as DL
+entity rule缓存 as RC
+entity squirrel回滚记录 as RRT
+entity 扣减流水表 as DFT
+entity squirrel as SQ
+database ruleDB as rdb
+entity 补贴库存耗尽恢复通知MQ as SMQ
 
-QARL -> QARL++--: 获取分布式锁
 
-group 查询回滚记录阶段
-    QARL -> QRRS++: 1.批量查询并判断是否已有 squirrel 回滚记录，若有则直接返回成功-batchGetRollbackRecord\n（适用配置库存，补贴有自己的DB回滚记录和相应判断）
-    return
+group 批量处理多个RuleBindKey（线程池并行）
+    loop 每个QuotaRollbackAtomicDetail
+        TS -> DL++: 获取分布式锁
+        return
+
+        TS -> RC++: 查询库存rule配置
+        note right: 含耗尽标识
+        return
+
+        TS -> RRT++: 批量查询回滚记录
+        return
+
+        TS -> TS: 去重已回滚过的uniqueKey
+
+        note over TS: 判断处理库存耗尽标识为已恢复\n（耗尽有查询时补偿逻辑，因此回滚时，\n先做库存恢复逻辑，再执行回滚操作）
+        alt 若回滚前库存耗尽
+            TS -> rdb: 调公共库存恢复方法，批量更新配额为已恢复\n（含补贴发通知MQ）
+            return
+'            alt #E6FFE6 若是补贴库存
+'                TS -> SMQ: 发送MQ通知补贴库存【**恢复**】
+'            end
+        end
+
+        TS -> TS: 拆分为补贴、配置、用户三类库存规则
+
+        alt 有补贴库存规则
+            TS -> TS: 调用补贴库存回滚逻辑
+        end
+
+        alt 有配置库存规则
+            TS -> DFT++: 查询扣减流水表、写squirrel回滚记录
+            return
+
+            TS -> RRT++: 写squirrel回滚记录
+            return
+
+            TS -> DFT++: 删除扣减流水
+            return
+
+            TS -> SQ++: 查询已扣减库存量（南北两地并行查询）
+            return
+
+            group 配置库存回滚（线程池并行）
+                alt 普通库存存在
+                    TS -> SQ++: 调用普通库存回滚接口（加锁保护）
+                    return
+                end
+
+                alt 热点库存存在
+                    TS -> SQ++: 调用热点库存回滚接口（加锁保护）
+                    return
+                end
+            end
+        end
+
+        alt 有用户库存规则
+            TS -> RRT++: 写用户库存回滚记录
+            return
+
+            TS -> TS: 调用户库存回滚接口（调thrift接口）
+        end
+
+        TS -> DL: 释放锁
+    end
 end
-
-group 补贴回滚阶段
-    QARL -> QARL++: 2.单个补贴回滚-processSingleSubsidyRollback
-        QARL -> SQRS++: 2.1.执行补贴回滚-executeRollback
-        return
-    deactivate
-end
-
-group 配置库存回滚阶段
-    QARL -> QARL++: 3.单个配置回滚-processSingleConfigRollback
-        QARL -> QFC++: 3.1.批量查询cellar流水，若无流水则返回失败-batchGetQuotaFlow
-        return
-
-        QARL -> QARL++: 3.2.写squirrel回滚记录和删除cellar流水-dealConfigRollbackRecordAndFlow
-        deactivate
-
-        QARL -> QRRS++: 3.3.批量保存回滚记录-batchSaveQuotaRollBackRecord
-        return
-
-        QARL -> QFC++: 3.4.批量删除配置流水-batchDelQuotaFlow
-        return
-
-        QARL -> QARL++: 3.5.普通配置库存回滚-doNormalConfigQuotaRollBack
-        deactivate
-
-        QARL -> QARL++: 3.6.热点配置库存回滚-doShardConfigQuotaRollBack
-        deactivate
-    deactivate
-end
-
-group 用户库存回滚阶段
-    QARL -> QARL++: 4.单个用户回滚-processSingleUserRollback
-
-        QARL -> QRRS++: 4.2.写 squirrel 回滚记录(dealUserRollbackRecord)-batchSaveQuotaRollBackRecord
-        return
-
-        QARL -> CCQSTP++: 4.3.调 server 批量原子回滚用户库存-batchAtomicRollbackUserQuota
-        return
-    deactivate
-end
-
-QARL -> QARL++--: 释放分布式锁
-
-deactivate
 
 @enduml
-

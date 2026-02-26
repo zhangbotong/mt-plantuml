@@ -1,0 +1,38 @@
+@startuml
+skinparam DatabaseBackgroundColor lightgoldenrodyellow
+skinparam EntityBackgroundColor lightgoldenrodyellow
+skinparam sequence {
+    ArrowColor black
+    LifeLineBorderColor black
+    LifeLineBackgroundColor khaki
+    ParticipantBackgroundColor lightgoldenrodyellow
+}
+
+participant M端服务 as MS
+entity 分布式锁 as DL
+entity rule缓存 as RC
+database ruleDB as DB
+entity 补贴库存耗尽恢复通知MQ as SMQ
+
+
+MS -> DL++: 加分布式锁
+return
+
+MS -> DB++: 查询历史rule配置
+return
+
+MS -> DB++: 写DB（更新rule，**不更新depletedTime**）
+return
+
+MS -> RC++: 更新rule缓存
+return
+
+alt #FFE6E6 若有历史rule配置 && 库存耗尽标识大于0 && 新配额 > 旧配额
+    MS -> MS: 查询库存已消耗值
+    alt 若需更新库存状态为【恢复】（新配额 > 库存消耗）
+        MS -> MS: 发MQ，恢复库存耗尽标识（含补贴发通知MQ）
+    end
+end
+
+MS -> DL: 释放锁
+@enduml

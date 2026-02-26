@@ -53,13 +53,13 @@ group 扣减阶段
             group 执行扣减
                 CQDSI -> CQDSI++: 5.2.2.配置库存扣减&失败回退-atomicDeductConfigQuota
                     ' 当校验时2个地域库存都充足时，若一个地域扣减失败，会重试另一个地域；
-                    CQDSI -> QDKBC++: 5.2.2.1.扣减配置普通-atomicQuotaBatchDeductNormalConfig
+                    CQDSI -> QDKBC++: 5.2.2.1.扣减配置普通-atomicQuotaBatchDeductNormalConfig\n（每个key调一次squirrel lua，(每个key调一次cellar，多个key异步并发调用）
                     return
-                    CQDSI -> SQKS++: 5.2.2.2.扣减配置热点-batchDeduct
+                    CQDSI -> SQKS++: 5.2.2.2.扣减配置热点-batchDeduct\n（每个key调一次squirrel lua，(每个key调一次cellar，多个key异步并发调用）
                     return
                 deactivate
 
-                CQDSI -> CQDSI++--: 5.2.3.扣减用户库存-atomicDeductUserQuota
+                CQDSI -> CQDSI++--: 5.2.3.扣减用户库存-atomicDeductUserQuota\n(每个key调一次cellar，多个key线程池异步并发调用)
             end
 
         deactivate
@@ -67,6 +67,11 @@ group 扣减阶段
     deactivate
 
     CQDSI -> CQDSI++--: 6.executeParallelDeduct
+end
+
+note over CQDSI: 耗尽标识处理
+alt 若扣减后库存耗尽
+    CQDSI -> CQDSI++--: 发MQ异步更新rule耗尽标识
 end
 
 deactivate

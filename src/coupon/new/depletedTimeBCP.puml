@@ -1,0 +1,41 @@
+@startuml
+skinparam DatabaseBackgroundColor #FFE6F0
+skinparam EntityBackgroundColor #FFE6F0
+skinparam sequence {
+    ArrowColor black
+    LifeLineBorderColor black
+    LifeLineBackgroundColor #FFE6F0
+    ParticipantBackgroundColor #FFE6F0
+}
+
+participant DBUS as DBUS
+entity 分布式锁 as DL
+entity rule缓存 as RC
+database ruleDB as DB
+entity 补贴库存耗尽恢复通知MQ as MQ
+
+DBUS -> DBUS: 监听rule表DBUS MQ（延迟30s）
+
+DBUS -> DBUS: 过滤"update"操作，且更新字段中含depleted_time的消息
+
+    DBUS -> RC++: 查询rule缓存
+    return
+
+    alt 若rule缓存不存在
+        DBUS -> DBUS: 缓存异常，写日志并打点，直接返回成功
+    end
+
+    DBUS -> DBUS: 查询缓存已消耗值
+
+    alt 若验证不一致
+        alt 若需更新库存状态为已耗尽（消耗值 >= 配额 && depleted_time <= 0）
+            DBUS -> DBUS: 调公共库存耗尽方法，更新配额为已耗尽（含补贴发通知MQ）
+        end
+
+        alt 若需更新库存状态为已恢复（消耗值 < 配额 && depleted_time > 0）
+            DBUS -> DBUS: 调公共库存恢复方法，更新配额为已恢复（含补贴发通知MQ）
+        end
+    end
+
+    DBUS -> DL: 释放锁
+@enduml

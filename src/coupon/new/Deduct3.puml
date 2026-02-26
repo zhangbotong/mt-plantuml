@@ -1,0 +1,29 @@
+@startuml
+skinparam DatabaseBackgroundColor lightgoldenrodyellow
+skinparam EntityBackgroundColor lightgoldenrodyellow
+skinparam sequence {
+    ArrowColor black
+    LifeLineBorderColor black
+    LifeLineBackgroundColor khaki
+    ParticipantBackgroundColor lightgoldenrodyellow
+}
+
+skinparam note {
+    BackgroundColor #FFE6E6
+}
+
+participant 库存server服务 as QS
+entity rule缓存 as DB
+
+QS -> DB++: 查询库存rule配置
+return
+
+QS -> QS: 校验库存（带查询结果，不会重复查询）
+
+QS -> QS: 扣减各维度库存（失败回滚）
+
+note over QS: 耗尽标识处理
+alt #FFE6E6 若扣减成功后，有缓存已耗尽
+    QS -> QS: 发MQ异步更新耗尽rule的标识
+end
+@enduml
