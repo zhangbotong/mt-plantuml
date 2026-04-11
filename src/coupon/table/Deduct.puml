@@ -1,0 +1,89 @@
+@startuml
+skinparam DatabaseBackgroundColor lightgoldenrodyellow
+skinparam EntityBackgroundColor lightgoldenrodyellow
+skinparam sequence {
+    ArrowColor black
+    LifeLineBorderColor black
+    LifeLineBackgroundColor khaki
+    ParticipantBackgroundColor lightgoldenrodyellow
+}
+
+participant 库存服务 as QS order 10
+entity 规则Squirrel as RS order 20
+entity 交易库存Squirrel as TS order 30
+entity 分布式锁Squirrel as LS order 40
+database 库存流水DB as DB order 50
+queue 写DB流水MQ as WMQ order 60
+participant task服务 as Task order 70
+
+QS -> RS++: 查库存 rule 配置
+return
+
+QS -> TS++: 查询交易库存已消耗值
+return
+
+QS -> QS: 校验剩余库存是否足够
+
+opt 库存不足
+    QS -> QS: 返回扣减失败
+end
+
+QS -> DB++: 查流水记录该幂等号是否已扣减过
+return
+
+opt 已存在扣减记录
+    QS -> QS: 返回扣减失败（重复扣减）
+end
+
+QS -> QS: 准备扣减参数
+
+QS -> LS++: 获取扣减分布式锁（幂等并发控制）
+return
+
+opt 若未获取到扣减分布式锁
+    QS -> QS: 返回未获取到扣减分布式锁
+end
+
+QS -> TS++: lua 脚本扣减交易库存
+    opt 查询若库存不足本次扣减
+        TS -> TS: 返回库存不足
+    end
+    TS -> TS: 扣减库存
+    TS -> TS: 设置缓存流水记录
+return
+
+opt 区域库存不足
+    QS -> TS++: 跨区域重试扣减
+    return
+end
+
+alt 全部 quotaType 扣减成功
+    QS -> WMQ++: 发送写流水 MQ
+    return
+
+    WMQ -> Task++: 写 mysql 成功扣减记录
+        Task -> DB++: 写 DB 流水记录
+        return
+    deactivate Task
+else 部分扣减失败/超时
+    QS -> WMQ++: 成功部分 quotaType 发送写流水 MQ
+    return
+
+    QS -> TS++: 回滚扣减成功部分
+    return
+
+    QS -> WMQ++: 发 MQ 写 mysql 回滚记录
+    return
+
+    WMQ -> Task++: 写 mysql 回滚记录
+        Task -> DB++: 写 DB 回滚流水记录
+        return
+    deactivate Task
+
+    QS -> QS: 返回扣减失败原因
+else 全部扣减失败
+    QS -> QS: 返回扣减失败原因
+end
+
+QS -> QS: 构建返回值并返回
+@enduml

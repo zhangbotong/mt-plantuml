@@ -1,0 +1,73 @@
+@startuml
+skinparam DatabaseBackgroundColor lightgoldenrodyellow
+skinparam EntityBackgroundColor lightgoldenrodyellow
+skinparam sequence {
+    ArrowColor black
+    LifeLineBorderColor black
+    LifeLineBackgroundColor khaki
+    ParticipantBackgroundColor lightgoldenrodyellow
+}
+
+participant 库存服务 as QS order 10
+queue 库存回滚MQ as RMQ order 20
+participant task服务 as Task order 30
+participant 交易库存回滚service as BS order 40
+entity 规则Squirrel as RS order 50
+entity 交易库存Squirrel as BSQ order 60
+entity 分布式锁Squirrel as LS order 70
+database 库存流水DB as DB order 80
+
+QS -> QS: 构建回滚参数
+
+QS -> RMQ++: 发送回滚 MQ
+return
+
+Task -> RMQ++: 监听到回滚消息
+return
+
+group 并发执行回滚操作
+    Task -> LS++: 获取锁\n(atomicKey_bizId_idempotentSign_bizType_bizDim)
+    return
+
+    opt 获取锁失败
+        Task -> Task: 消费成功（少回滚，少卖，问题不大）
+    end
+
+    Task -> RS++: 查询库存 rule 配置
+    return
+
+    group 循环处理每个 quotaType
+        opt 若 rule 不在有效期内
+            Task -> Task: 跳过回滚此 quotaType
+        end
+
+        opt 判断若非当日扣减请求
+            Task -> Task: 跳过日库存 quotaType
+        end
+
+        Task -> BS++: 回滚交易库存逻辑\n（bizId + bizType + idempotentSign 维度）
+            BS -> DB++: 查询流水记录
+            return
+            BS -> BS: 过滤无需回滚的数据（无扣减记录或有回滚记录）
+
+            BS -> BSQ++: 查询已消耗库存
+            return
+
+'            BS -> BS: 检查回滚前已耗尽的 quotaTypeSet，用于发送恢复通知
+            BS -> BS: 根据已扣库存，确定回滚区域
+
+            BS -> DB++: 写 DB 回滚记录 status=0
+            return
+
+            BS -> BSQ++: 执行回滚操作
+            return
+
+            opt 若回滚成功
+                BS -> DB++: 更新回滚记录 status=1
+                return
+            end
+        deactivate BS
+    end
+end
+
+@enduml

@@ -1,0 +1,124 @@
+@startuml
+skinparam sequence {
+ArrowColor black
+LifeLineBorderColor black
+LifeLineBackgroundColor khaki
+ParticipantBackgroundColor lightgoldenrodyellow
+}
+
+
+participant 库存服务
+entity 配置Squirrel
+entity 补贴库存Squirrel
+entity 分布式锁Squirrel
+database 库存流水DB
+queue 写DB流水MQ
+participant task服务
+queue 库存耗尽恢复通知MQ
+
+库存服务 -> 配置Squirrel : 查库存rule配置
+activate 配置Squirrel
+配置Squirrel --> 库存服务
+deactivate 配置Squirrel
+
+库存服务 -> 补贴库存Squirrel : 查询补贴库存已消耗值
+activate 补贴库存Squirrel
+补贴库存Squirrel --> 库存服务
+deactivate 补贴库存Squirrel
+
+库存服务 -> 库存服务: 校验剩余库存是否足够
+
+opt 库存不足
+    库存服务 -> 库存服务 : 返回扣减失败
+end
+
+库存服务 -> 库存流水DB: 查流水记录该幂等号是否已扣减过
+activate 库存流水DB
+库存流水DB --> 库存服务
+deactivate 库存流水DB
+
+opt 已存在扣减记录
+库存服务 -> 库存服务: 返回扣减失败（重复扣减）
+end
+
+库存服务 -> 库存服务 : 准备扣减参数
+
+库存服务 -> 分布式锁Squirrel:获取扣减分布式锁
+activate 分布式锁Squirrel
+    分布式锁Squirrel --> 库存服务
+deactivate 分布式锁Squirrel
+
+opt 若未获取到扣减分布式锁
+    库存服务 -> 库存服务: 返回未获取到扣减分布式锁
+end
+
+库存服务 -> 补贴库存Squirrel : lua脚本扣减补贴库存
+activate 补贴库存Squirrel
+    opt 查询若库存不足本次扣减
+        补贴库存Squirrel -> 补贴库存Squirrel: 返回库存不足
+    end
+
+    补贴库存Squirrel -> 补贴库存Squirrel: 扣减库存
+    补贴库存Squirrel -> 补贴库存Squirrel: 设置缓存流水记录
+    补贴库存Squirrel --> 库存服务
+deactivate 补贴库存Squirrel
+
+opt 区域库存不足
+   库存服务 -> 补贴库存Squirrel : 跨区域重试扣减
+   activate 补贴库存Squirrel
+        补贴库存Squirrel --> 库存服务
+   deactivate 补贴库存Squirrel
+end
+
+alt 全部quotaType扣减成功
+    库存服务 -> 写DB流水MQ : 发送写流水MQ
+    activate 写DB流水MQ
+        写DB流水MQ --> 库存服务
+    deactivate 写DB流水MQ
+
+    库存服务 -> 库存服务: 校验补贴库存是否已耗尽
+    opt 补贴库存已耗尽
+        库存服务 -> 库存耗尽恢复通知MQ: 发送库存耗尽通知MQ
+        activate 库存耗尽恢复通知MQ
+            库存耗尽恢复通知MQ --> 库存服务
+        deactivate 库存耗尽恢复通知MQ
+    end
+
+    写DB流水MQ -> task服务 : 写 mysql 成功扣减记录
+    activate task服务
+        task服务 -> 库存流水DB: 写DB流水记录
+        activate 库存流水DB
+            库存流水DB --> task服务
+        deactivate 库存流水DB
+    deactivate task服务
+else 部分扣减失败/超时
+    库存服务 -> 写DB流水MQ : 成功部分quotaType发送写流水MQ
+    activate 写DB流水MQ
+        写DB流水MQ --> 库存服务
+    deactivate 写DB流水MQ
+
+    库存服务 -> 补贴库存Squirrel : 回滚扣减成功部分
+    activate 补贴库存Squirrel
+        补贴库存Squirrel --> 库存服务
+    deactivate
+
+    库存服务 -> 写DB流水MQ : 发 MQ 写 mysql 回滚记录
+    activate 写DB流水MQ
+        写DB流水MQ --> 库存服务
+    deactivate 写DB流水MQ
+
+    写DB流水MQ -> task服务 : 写 mysql 回滚记录
+    activate task服务
+        task服务 -> 库存流水DB: 写DB回滚流水记录
+        activate 库存流水DB
+            库存流水DB --> task服务
+        deactivate 库存流水DB
+    deactivate task服务
+
+    库存服务 -> 库存服务 : 返回扣减失败原因
+else 全部扣减失败
+    库存服务 -> 库存服务 : 返回扣减失败原因
+end
+
+库存服务 -> 库存服务: 构建返回值并返回
+@enduml

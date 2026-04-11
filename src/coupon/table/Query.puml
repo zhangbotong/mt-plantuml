@@ -1,0 +1,25 @@
+@startuml
+skinparam DatabaseBackgroundColor lightgoldenrodyellow
+skinparam EntityBackgroundColor lightgoldenrodyellow
+skinparam sequence {
+    ArrowColor black
+    LifeLineBorderColor black
+    LifeLineBackgroundColor khaki
+    ParticipantBackgroundColor lightgoldenrodyellow
+}
+
+participant 库存服务 as QS order 10
+entity 规则Squirrel as RS order 20
+entity 交易库存Squirrel as BS order 30
+
+QS -> RS++: 查库存 rule 配置
+return
+
+QS -> QS: 分离出【交易库存】并为其构造查询参数
+
+QS -> BS++: 并行查询所有维度（原补贴维度抽象为交易维度，包含补贴/桌台等）
+return
+
+QS -> QS: 合并查询结果（至返回结果中
+
+@enduml

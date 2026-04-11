@@ -19,7 +19,7 @@ entity squirrel回滚记录 as RRT
 entity 扣减流水表 as DFT
 entity squirrel as SQ
 database ruleDB as rdb
-entity 补贴库存耗尽恢复通知MQ as SMQ
+'entity 补贴库存耗尽恢复通知MQ as SMQ
 
 
 group 批量处理多个RuleBindKey（线程池并行）
@@ -28,7 +28,7 @@ group 批量处理多个RuleBindKey（线程池并行）
         return
 
         TS -> RC++: 查询库存rule配置
-        note right: 含耗尽标识
+'        note right: 含耗尽标识
         return
 
         TS -> RRT++: 批量查询回滚记录
@@ -36,7 +36,7 @@ group 批量处理多个RuleBindKey（线程池并行）
 
         TS -> TS: 去重已回滚过的uniqueKey
 
-        note over TS: 判断处理库存耗尽标识为已恢复\n（耗尽有查询时补偿逻辑，因此回滚时，\n先做库存恢复逻辑，再执行回滚操作）
+'        note over TS: 判断处理库存耗尽标识为已恢复\n（耗尽有查询时补偿逻辑，因此回滚时，\n先做库存恢复逻辑，再执行回滚操作）
         alt 若回滚前库存耗尽
             TS -> rdb: 调公共库存恢复方法，批量更新配额为已恢复\n（含补贴发通知MQ）
             return

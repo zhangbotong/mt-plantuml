@@ -1,0 +1,41 @@
+@startuml
+participant 库存服务 as S order 5
+participant 库存规则squirrel as C order 10
+participant 用户库存cellar as UC order 30
+participant 聚合库存处理MQ as AMQ order 35
+participant Task服务 as T order 40
+
+S -> C: dd
+return
+S -> C++: dd
+return
+S --> C++: dd
+return
+
+S -> C++: 查询库存配置
+return
+
+alt 线程C
+S --> UC++: 查询用户库存
+return
+end
+
+group 多线程 用户库存扣减
+
+    alt 线程A..N
+        S --> UC++: 用户库存扣减(uid、phone、uuid)
+        return
+    end
+
+    alt 用户库存扣减成功
+        S --> AMQ: 发MQ异步加工聚合库存数据
+        return
+    end
+end
+
+T -> AMQ++: 聚合库存处理MQ
+return
+
+
+
+@enduml

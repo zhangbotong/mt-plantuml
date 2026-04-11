@@ -1,0 +1,73 @@
+@startuml
+'https://plantuml.com/sequence-diagram
+participant 库存服务 as S order 5
+participant 库存规则squirrel as C order 10
+participant 配置库存squirrel as CS order 20
+participant 补贴库存squirrel as BS order 25
+participant 用户库存cellar as UC order 30
+participant 配置库存回退MQ as RMQ order 35
+'participant 配置库存流水 as L order 40
+
+S -> C++: 查询库存配置
+return
+
+group 库存批量校验
+alt 线程A
+S --> CS++: 查询配置库存
+return
+end
+
+alt 线程B
+S --> BS++: 查询补贴库存
+return
+end
+
+alt 线程C
+S --> UC++: 查询用户库存
+return
+end
+end
+
+alt 补贴库存
+    S --> BS++: 补贴库存扣减
+    return
+
+else 非补贴库存
+
+group 多线程 配置库存扣减
+alt 线程A
+S --> CS++: 配置总库存扣减
+return
+end
+
+alt 线程B
+S --> CS++: 配置日库存扣减
+return
+end
+end
+
+group 存在扣减失败
+S --> RMQ++: 发送配置回退消息
+return
+end
+
+group 多线程 用户库存扣减
+
+alt 线程A..N
+S --> UC++: 用户库存扣减(uid、phone、uuid)
+return
+end
+end
+
+
+group 存在扣减失败
+S --> RMQ++: 发送配置回退消息
+S --> UC++: 回退用户库存扣减
+return
+end
+
+end
+
+
+
+@enduml

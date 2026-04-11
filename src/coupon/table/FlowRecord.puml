@@ -1,0 +1,29 @@
+@startuml
+skinparam DatabaseBackgroundColor lightgoldenrodyellow
+skinparam EntityBackgroundColor lightgoldenrodyellow
+skinparam sequence {
+    ArrowColor black
+    LifeLineBorderColor black
+    LifeLineBackgroundColor khaki
+    ParticipantBackgroundColor lightgoldenrodyellow
+}
+
+participant task服务 as QS order 10
+entity 分布式锁Squirrel as LS order 20
+database 流水DB as DB order 30
+
+QS -> DB++: 查看是否已存在该流水（扣减 or 回滚）
+return
+
+opt 有流水记录
+    QS -> QS: 消费完成
+end
+
+QS -> DB++: 写流水
+return
+
+opt 流水写入成功
+    QS -> LS++: 释放扣减时加的分布式锁
+    return
+end
+@enduml
