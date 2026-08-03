@@ -1,0 +1,45 @@
+@startuml
+
+participant "商详页(上游)" as 商详页
+participant "券平台\nGoodsCouponTagService" as 券平台
+participant "券系统" as 券系统
+participant "活动计算/渠道配置" as 活动
+
+商详页 -> 券平台++: getGoodsCouponTagsBySkus\n(sceneSourceCode=MEDICINE_INNER_SKU_TAG,\n mealGetType=2 自取标记)
+
+券平台 -> 券平台: 入参校验 + 降级开关检查\n(新开关 getGoodsCouponTagsBySkus_\ndegrade_medicine_self_pickup_switch)
+
+alt 降级开关打开(降级=true)
+  券平台 --> 商详页: 返回(DEMOTE_SERVICE，保持历史逻辑不过滤)
+else 降级开关关闭(false)
+  券平台 -> 券系统++: 1. 查询用户已领券(UNUSED)
+  return receivedCouponList
+
+  券平台 -> 券平台: 已有过滤逻辑\n(城市限制/选人/版控/大额券)
+
+  group 【新增】医药自取过滤-已领券
+    券平台 -> 券平台: isMedicineSelfPickupScene(MEDICINE, mealGetType=2)=true
+    券平台 -> 券平台: 遍历剔除 use_order_limit==2(仅非自取)的券
+    note right of 券平台
+      use_order_limit==1 或缺省 → 保留
+      (缺省视为支持自取+非自取)
+    end note
+  end
+
+  券平台 -> 活动++: 2. 计算 sku↔渠道关系 + 查可领券(券活动)
+  return canGrabCouponList
+
+  group 【新增】医药自取过滤-可领券(券活动)
+    券平台 -> 券平台: 遍历剔除 use_order_limit==2 的券
+    note right of 券平台
+      "不可配置自取"类型(20009/20005/20015/
+      20020/20000)按 channelTemplateId 兜底剔除
+    end note
+  end
+
+  券平台 -> 券平台: 3. 组装Context + 构建标签\ngoodsCouponTagBuilderManager.execute
+end
+
+return couponTagsMap\n(仅含自取可用券标签)
+
+@enduml

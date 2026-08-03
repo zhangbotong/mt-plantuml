@@ -1,0 +1,42 @@
+@startuml
+'规则删除时同步清理预警配置流程
+
+skinparam {
+    DatabaseBackgroundColor lightgoldenrodyellow
+    EntityBackgroundColor lightgoldenrodyellow
+    NoteBackgroundColor #FFE6E6
+}
+
+skinparam sequence {
+    ArrowColor black
+    LifeLineBorderColor black
+    LifeLineBackgroundColor khaki
+    ParticipantBackgroundColor lightgoldenrodyellow
+}
+
+actor 运营人员 as Operator order 10
+participant "M端" as Admin order 20
+participant "Task 服务" as Task order 30
+participant "规则 DB" as RuleDB order 40
+participant "预警 DB" as AlertDB order 50
+
+== 删除阶段（M端）==
+
+Operator -> Admin: 删除库存规则
+Admin -> RuleDB++: 执行规则删除
+return
+
+== 清理预警阶段（异步任务）==
+
+RuleDB -> Task++: binlog 变更事件
+
+alt 非 DELETE 操作
+    note right of Task: 结束
+else DELETE 操作
+    Task -> AlertDB++: 删除相同 bizType+bizId+\nquotaType+bizDim 的预警配置
+    return
+end
+
+return
+
+@enduml

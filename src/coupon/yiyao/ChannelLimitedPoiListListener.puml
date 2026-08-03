@@ -1,0 +1,50 @@
+@startuml
+title 消费 MQ 刷新 channel_limited_poi_list 缓存
+autonumber
+participant "DbusPoiChannelChangeConsumer\n(新增consumer)" as C
+participant "WmActCouponConfigWrapperCache" as W
+participant "Rhino 限流" as R
+participant "分布式锁\nTairSetnxLockService" as L
+participant "Cellar 缓存" as KV
+participant "DB\ntsp_act_poi_channel" as DB
+
+C -> C: 校验入口总开关、判断操作类型\n(仅 INSERT/DELETE/UPDATE 放行，其余结束)
+
+C -> R++: 消费限流校验
+return
+
+C -> W++: 查渠道下有效券的发放条件缓存（getByChannelId）
+return
+
+opt 若渠道下没有有效券配置了多门店新老客发放条件(targetUserType != 1)
+    note over C: 跳过刷新，结束
+end
+
+
+alt INSERT/DELETE
+    C -> KV++:  读缓存-getByChannelId
+    return Result
+    alt INSERT & 缓存 poiCount > 2k
+      note over C:缓存中 poi 数量已达上限，跳过刷新，结束
+    else DELETE & 缓存中无此 poi
+      note over C:缓存中无此 poi，跳过刷新，结束
+    end
+else UPDATE
+'    C -> KV++:  读缓存ttl-ChannelId
+'    return Result
+    C -> L++: 获取 update+channel 分布式锁，过期时间30min（Lion可配）\n不会主动释放，目的是update限流
+    return
+    opt 未获取到锁
+      note over C: update操作且30min内已刷新过，结束
+    end
+end
+
+  C -> R++: 查 DB 限流 (Rhino)
+  return 放行
+
+  C -> DB++: DB 查前 2k(Lion可配) poiIdList
+  return
+
+  C -> KV++: 覆盖写，expireTime=30d（(Lion可配)）
+  return
+@enduml

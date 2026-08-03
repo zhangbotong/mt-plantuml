@@ -1,0 +1,52 @@
+@startuml
+title 新老客判定：新增编排方法（缓存优先 + 双读比对 + DB 降级）
+autonumber
+participant "上游方法(新老客判定)" as Guide order 5
+participant "编排方法\n(灰度/回滚)" as Orch order 10
+participant "查缓存新方法\ngetPoiIdListByChannelIdFromCache" as CacheM order 15
+participant "查DB旧方法\ngetPoisByChannelId" as DbM order 20
+participant Cache order 25
+participant DB order 30
+
+' 上游①getChannelPoisByChannelIdForPoiTargetUserType(else分支,:1069)、上游②parallelGetChannelId2PoiIds(:647) 均改为调用编排方法
+Guide -> Orch++: 根据 channelId 查 poiIdList
+
+alt Lion开关 = 双读比对
+  Orch -> DbM++ #RoyalBlue : DB 查门店
+  DbM -> DB++ #RoyalBlue
+  return
+  return
+
+  alt 命中灰度
+      Orch -> CacheM++ #RoyalBlue : 异步缓存查门店
+      CacheM -> Cache++ #RoyalBlue :
+      return
+      return
+      alt 缓存命中
+        Orch -> Orch #RoyalBlue : 比对结果并上报打点
+      else 缓存未命中/异常
+        Orch -> Orch #RoyalBlue : 返回 DB 结果，并打点上报
+      end
+  end
+  Orch -> Orch: 返回 DB 查询结果
+else Lion开关 = 灰度读缓存（新逻辑）
+  alt 命中Lion灰度
+      Orch -> CacheM++ #MediumSeaGreen : 缓存查门店
+      CacheM -> Cache++ #MediumSeaGreen :
+      return
+      return
+  else 未命中Lion灰度
+    Orch -> DbM++ #MediumSeaGreen : DB 查门店
+    DbM -> DB++ #MediumSeaGreen
+    return
+    return
+  end
+else Lion开关 = 只读DB（降级，走老逻辑）
+  Orch -> DbM++ #SlateGray : DB 查门店
+  DbM -> DB++ #SlateGray
+  return
+  return
+end
+
+return poiIdList（用于新老客判定）
+@enduml
