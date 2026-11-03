@@ -1,0 +1,75 @@
+@startuml
+skinparam maxMessageWidth 130
+skinparam sequenceMessageAlign toDirection
+skinparam noteBackgroundColor #FFFACD
+
+title getGoodsCouponTagsBySkus 医药商祥接口自提场景新增券过滤
+
+actor "上游调用方" as Client
+participant "TspRetailCouponShoppingGuideThriftIfaceImpl\n(查券Thrift入口)" as Iface
+participant "GoodsCouponTagService\n(商品券标签服务)" as Svc
+participant "AssoUserWrapperServiceV2\n(已领券查询)" as AssoUser
+participant "TspActChannelPoiCacheProxy\n(门店-活动缓存)" as PoiCache
+participant "ConcurrentService\n(并发任务编排)" as Conc
+participant "CBaseStoreService\n(门店自提属性)" as CBase
+participant "BatchGetShowChannelCouponTask\n(可领券预发)" as PreSend
+participant "GoodsCouponTagBuilderManager\n(标签构建)" as Builder
+
+Client -> Iface++: getGoodsCouponTagsBySkus(request)
+Iface -> Iface: Cat埋点 (sceneSourceCode 事务)
+Iface -> Svc++: getGoodsCouponTagsBySkus(request)
+
+Svc -> Svc: 0.入参检查 checkParam
+Svc -> Svc: 降级开关检查 (命中则直接返回降级响应)
+
+alt 场景路由 (特殊场景直接 return)
+  Svc -> Svc: SG_SEARCH_BRAND_COUPON_DETAIL → processSgSearchBrandCoupon
+  Svc -> Svc: MEDICINE_SAVE_MONEY_* → medicineSaveMoney*Process
+  Svc -> Svc: TUAN_LIVE_BROADCAST_* → couponTagProcess.process
+  Svc -> Svc: SG_FRIEND_ASSIST_OPT_COUPON → processFriendAssistOptCoupon
+end
+
+note over Svc: 以下为主链路 (通用商品券标签)
+
+== Step1: 获取已领券列表 receivedCouponList ==
+Svc -> Svc: convert → GoodsCouponSkuLabelRequest\n(透传 userId/clientInfo/sceneSourceCode/poiSkuInfoList)
+Svc -> Svc: 计算 channelTemplateSet (支持渠道模板)\n配送券灰度 / 0元冲单券实验判定
+Svc -> AssoUser++: getCouponUserListV2(queryVo)\n查未使用 & 未过期已领券
+return receivedCouponList
+Svc -> Svc: 已领券多维过滤\n(城市限制/选人/红包/画像/新人/大额券/版控)
+Svc -> Svc: poiTargetUserTypeProcessor 获取已领券-门店关系
+
+== Step2: 计算sku与渠道关系 & 可用渠道列表 (geChannelSkuListByChannelTemplateIdsAndSkuListV3) ==
+Svc -> PoiCache++: getChannelPoiByPoiIdsAndTemplateIdsV2\n(门店-活动缓存)
+return wmActChannelPoiCacheDetailList
+Svc -> Conc++: 并发提交异步任务集\n(会员/UPC/类目/SKU/门店自提属性/神价黑名单...)
+Conc -> CBase++: GetStoreSelfPickupInfoListTask\n(仅零元券自提相关场景触发)
+return poi2StorePickUpMap\n(poiId → StorePickUpInfo)
+return skuLabelsContext\n(preSku2channelIdListMap / channelId2ConfigMap ...)
+
+note over Svc #EEEEEE: poi2StorePickUpMap 是【门店级自提能力】\n当前仅用于零元券"自提免配"标签展示\n**不用于券维度的自提过滤**, 注意区分
+
+== Step3: 获取可领券 canGrabCouponList ==
+Svc -> Svc: 异步查3C大额券配送方式\nbigGoodsCouponService.checkIsMeituanDeliveryAsync
+Svc -> Svc: 计算 receivableChannelTemplateList
+Svc -> Conc++: batchGetShowChannelCouponResult\n(BatchGetShowChannelCouponTask + 新人红包预发)
+Conc -> PreSend++: showChannelCouponV5 预发可领券
+return canGrabCouponList + channelId2poiIds
+return batchPreCouponInfoDTO
+
+== ★ 自提参数过滤·非自提券 插入点 ★ ==
+note over Svc #FFD700: **(此处两张券表均已就绪)**\n——位于 forbiddenCouponHandel 之前——\n对 receivedCouponList + canGrabCouponList 统一过滤\n判定: CouponUtil.isSelfOrderCoupon(use_conditions)\n  use_order_limit=="1" → 自提订单券\n当 request 自提参数=true 时,剔除非自提券(配送券)\n与 forbiddenCouponHandel 模式一致(它也是同时处理已领+可领)
+
+Svc -> Svc: forbiddenCouponHandel(...)\n(黑名单商家券过滤, 同作用于 已领+可领)
+Svc -> Svc: 合并 channelId2poiIds 与已领券门店关系
+
+== Step4: 构建标签上下文 & 生成券标签 ==
+Svc -> Svc: 构建 GoodsCouponTagContext\n(received/receivable/preSku2channel/... poi2StorePickUpMap ...)
+Svc -> Builder++: execute(context)
+return couponTagsMap (skuId → List<CouponTagInfo>)
+Svc -> Svc: filterCouponTagsByGatherPoiType\n(集合店类型过滤)
+Svc -> Svc: response.setCouponTagsMap(couponTagsMap)
+
+return GetGoodsCouponTagsBySkusResponse
+return 返回响应
+@enduml

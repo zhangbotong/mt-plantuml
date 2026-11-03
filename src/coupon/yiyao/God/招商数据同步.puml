@@ -1,0 +1,34 @@
+@startuml
+skinparam maxMessageSize 200
+skinparam sequence {
+  LifeLineBorderColor #AAAAAA
+  LifeLineBackgroundColor #DDDDDD
+}
+
+title 招商&券 数据格式流转时序图
+autonumber
+
+actor "运营" as Operator
+actor "商家(poi)" as Merchant
+participant "招商平台" as Recruitment order 10
+participant "券平台补贴系统" as Subsidy order 20
+
+
+Operator -> Recruitment++: 创建招商活动
+    Recruitment -> Subsidy++: 同步招商活动：\n 招商id、状态、补贴规则
+    return 父补贴方案id
+return
+
+Operator -> Recruitment++: 上传品池
+return
+
+Recruitment -> Subsidy++: 同步增量品池(UPC)信息\n+ 父补贴方案id
+return
+
+Merchant -> Recruitment++: poi 报名
+return
+
+Recruitment -> Subsidy++: 同步商家报名信息(poi)\n+ 父补贴方案id
+return
+
+@enduml

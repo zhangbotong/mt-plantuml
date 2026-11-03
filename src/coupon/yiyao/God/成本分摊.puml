@@ -1,0 +1,26 @@
+@startuml
+title 图4-4 【用券-3】成本分摊计算(现状骨架+医药改造点, 红色=新增/改动)
+participant "UseCouponAbility" as ability
+participant "<font color=red>MedicineHaoDianChargeShareCalculate\n(新增计算器)" as calc
+participant "补贴系统缓存" as subsidy
+participant "父类 AbstractChargeShareCalculate\n(现状)" as abs
+
+ability -> calc ++ : getUseChargeBearInfo(订单商品+抵扣明细)\n<font color=red>(BDF路由: biz=MEDICINE+category=WAYNE_HAODIAN_COUPON)
+note right of calc : <font color=red>【差异D3·待讨论】计算器落位\n基线§3.3仅有表模型推演
+calc -> subsidy ++ : 门店poiId → 子补贴方案id
+return
+calc -> subsidy ++ : 子方案id → 规则明细(分摊比例/最高商补)\n+ 父补贴方案id
+return
+calc -> subsidy ++ : 父方案id + UPC → 白名单(品池归属)
+return
+loop 每个用券商品(UPC)【粒度: 整券→品, 现有getSqChargeResultForGear为整券口径】
+  calc -> calc : <font color=red>每条方案: 商补=min(商品抵扣面额×商补比例, 最高商补)\n(公式同构复用 BudgetRatioUtil.getPoiCharge, 四舍五入2位)
+  calc -> calc : <font color=red>择优: 实际出资高 > 报名时间晚 > 任取其一
+  calc -> calc : <font color=red>美补=商品抵扣面额-商补
+end
+calc -> abs ++ : processChargeConfig\n<font color=red>(美补按券配置分摊承担方/PN, 四舍五入差值→商补兜)
+return charge_an_list + sku2ChargeSideANItem
+return UseChargeBearInfo
+ability -> ability : insertUseRecord\n<font color=red>【差异D4·待讨论】UPC×品池×出资方案明细写入extra
+note over ability : <font color=red>跳过神券报名活动库存扣减\n(TspSqActivityUseStockService)\n本次不涉及库存
+@enduml

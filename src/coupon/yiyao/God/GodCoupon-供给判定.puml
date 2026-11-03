@@ -1,0 +1,27 @@
+@startuml
+title 图4-1 【用券-1】供给判定（现状主干+医药改造点，红色=新增/改动）
+participant "UseCouponAbility" as ability
+participant "DefaultCouponUseAbleChecker" as checker
+participant "DataC/韦恩\nopencore(JudgeThriftService)" as datac
+participant "融合补贴系统缓存" as subsidy
+
+ability -> checker ++ : doBatchCheckCouponCanUse(bizId=medicine)
+checker -> checker : 基础校验(有效期/手机号/时间/互斥/业务线)\n(现状: sdk CouponCanUseValidator族 :1028-1110)
+
+par <font color=red>并行分支A: 行业韦恩判定【差异D1: 并行,基线为串行】
+  checker -> datac ++ : <font color=red>judgeIdInCollect(poi×skuList, 医药韦恩id)\n<font color=red>scene=actCheck_by_medicalPoiUpc(新增, 现 biz 写死 "wm")
+  note right : <font color=red>双韦恩池路由(基线§3.4方案1):\n医药流量→医药韦恩; 未识别→默认外闪;\n非医药流量→医药条件直接置失败
+  return <font color=red>白-黑结果: 可用SKU集合(全黑→不可用+文案)
+else <font color=red>并行分支B: 招商报名校验
+  checker -> subsidy ++ : <font color=red>门店+UPC 报名校验\n<font color=red>(子补贴方案维度表→规则明细→UPC白名单, 走缓存不直查DB)
+  note right : <font color=red>新增 Provider: medSubsidyEnroll\n(外闪神券无此校验)
+  return 生效报名+出资方案
+end
+
+checker -> checker : <font color=red>双条件与判断: 韦恩(白-黑) && 报名生效
+checker -> checker : <font color=red>韦恩有而补贴无 → 置为不可用券(双保险, 基线§3.3)
+alt <font color=red>无门槛券且可用商品为空
+  checker -> checker : <font color=red>先判报名: 未报名→"仅限XX商家可用...";\n已报名全黑→"加购所有商品均不可用红包"
+end
+return CouponUseAbleInfo(含券-品映射关系)
+@enduml

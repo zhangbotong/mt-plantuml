@@ -1,0 +1,43 @@
+@startuml
+skinparam maxMessageWidth 130
+skinparam sequenceMessageAlign toDirection
+skinparam noteBackgroundColor #FFFACD
+
+title getGoodsCouponTagsBySkus 频道搜券筛场景新增处方药商家券过滤（券级）· 改动点标注
+
+actor "上游调用方(活动计算)" as Client
+participant "TspRetailCouponShoppingGuideThriftIfaceImpl\n(查券Thrift入口)" as Iface
+participant "GoodsCouponTagService\n(商品券标签服务)" as Svc
+participant "GoodsCouponTagBuilderManager\n(标签构建)" as Mgr
+participant "MedicinePrescriptionCouponFilter\n(处方药商家券过滤)" as Filter
+participant "场景builder\n(QUERY已领/可领)" as Builder
+
+Client -> Iface++: getGoodsCouponTagsBySkus(request)\n(poiSkuInfoList 携带 prescription)\n【改动1·上游：传prescription】
+Iface -> Svc++: getGoodsCouponTagsBySkus(request)
+Svc -> Svc: 入参检查 / 降级开关检查\n场景路由 / 已领券+可领券查询\nsku-channel 关系计算
+
+== Step: 标签构建（券级过滤·新增插入点） ==
+Svc -> Mgr++: execute(context)\n(context 含 userId/场景码/sku2PoiSkuInfo)
+Mgr -> Mgr: 已领券按 skuId 分组 + 红包合入
+Mgr -> Filter++: 【改动2·新增：已领侧过滤】\nfilterPrescriptionUnavailablePoiCouponList\n(skuId2CouponListMap, context)\n灰度+场景白名单判定(每侧一次)\n逐sku: prescription=true\n&& 商家券(商品券判定取反)\n&& 非医药动态红包\n→ 移除该券
+return 过滤后的已领券分组
+Mgr -> Builder++: 逐sku渲染标签 getCouponTagInfoList
+return 已领券标签
+Mgr -> Mgr: 可领券按 skuId 分组
+Mgr -> Filter++: 【改动3·新增：可领侧过滤(同构)】\n判定同已领侧
+return 过滤后的可领券分组
+Mgr -> Builder++: 逐sku渲染标签 getCouponTagInfoList
+return 可领券标签
+Mgr -> Mgr: 全局混排+截断 sortAndTruncateCouponList
+return couponTagsMap (skuId → List<CouponTagInfo>)
+Svc -> Svc: response.setCouponTagsMap
+return 返回响应
+return 返回响应
+
+legend right
+【改动1】上游(活动计算)传 prescription —— 上游改动
+【改动2】已领侧分组后统一过滤 —— 新增
+【改动3】可领侧分组后统一过滤 —— 新增
+过滤收敛在 Manager 分组后、渲染前，\n位于全局截断之前，无名额空洞
+endlegend
+@enduml

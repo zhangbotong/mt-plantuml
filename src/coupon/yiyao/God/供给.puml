@@ -1,0 +1,40 @@
+@startuml
+title 图4-1 【用券-1】供给判定(现状主干粗略+医药改动详细, 红色=新增/改动)
+participant "UseCouponAbility" as ability
+participant "DefaultCouponUseAbleChecker\n(core doBatchCheckCouponCanUse :309\n条件计算入口 :2740-2775)" as checker
+participant "UseConditionCalculateTask\n(线程池并行, 现状框架)" as task
+participant "WayneActIdUseConditionDataProvider\n(core custom :44)\n【改动点⓪①】" as wayneP
+participant "MedSubsidyEnrollUseConditionDataProvider\n【新增, 改动点④】" as enrollP
+participant "DataCOpenThriftProxy\n(core outerservice :56)" as datac
+participant "融合补贴系统缓存\n(桑迎飞建)" as subsidy
+
+== 现状主干(不改动, 粗略) ==
+ability -> checker ++ : doBatchCheckCouponCanUse(bizId=medicine)
+checker -> checker : 基础校验(有效期/手机号/时间/互斥/业务线)\n(现状: sdk CouponCanUseValidator族)
+checker -> task ++ : 条件按ConditionDataEntry分组\nuseConditionThreadPool并行提交(现状框架:2743-2761)\n<font color=red>现状即天然并行, 无需自建par【差异D1依据】
+return 各条件计算结果
+checker -> checker : getUseConditionValidResult逐条件比较(:2932)\n失败条件→不可用原因(现状框架)
+
+== 本次改动(详细): 两个条件Provider ==
+group 改动点⓪+①: 韦恩判定(改现有类 WayneActIdUseConditionDataProvider)
+  task -> wayneP ++ : getUseConditionData(key=wayneActId)\n(现状只做门店维度判定, 无SKU/UPC维度)
+  wayneP -> wayneP : <font color=red>⓪ 韦恩id路由选择(改getUseConditionData :52,\n在:75-78收集requireWayneIds处)\n<font color=red>读券配置双韦恩池(建券新增, 见§5.1②)\n<font color=red>医药流量→保留医药韦恩id; 外闪流量→保留历史韦恩id\n<font color=red>未识别流量→默认外闪韦恩(宁缺勿错)\n<font color=red>非医药流量下医药韦恩条件→setSimpleCanNotUse置失败
+  wayneP -> datac ++ : <font color=red>getJudgeIdResponse(:113) 改造:\n<font color=red>biz: 常量WM("wm") → 按业务线取MEDICINE("yy")(常量已存在:47)\n<font color=red>scene: 新增actCheck_by_medicalPoiUpc(与韦恩侧约定)\n<font color=red>judgeIdParam扩展skuList入参(门店xSKU维度)
+  note right of datac : <font color=red>白名单圈选+黑名单剔除(白-黑)由韦恩接口内部完成\n券侧不感知白-黑过程, 不单独建黑名单Provider\n(取消原方案的MedicineSqForbiddenSku Provider)
+  return <font color=red>可用SKU集合(需韦恩侧扩展返回结构:\n现状validCollects仅含命中韦恩id, 医药scene需返回可用SKU明细\n供§4.2选品与门槛使用【接口协议对齐项, 归D1联调】)
+  return 韦恩条件结果
+end
+
+group 改动点④: 招商报名校验(新增类 MedSubsidyEnrollUseConditionDataProvider)
+  task -> enrollP ++ : getUseConditionData(key=medSubsidyEnroll)\n<font color=red>(新增Provider, @Biz MEDICINE+新logicId\n注册CustomUseConditionLogicId; 外闪神券无此校验)
+  enrollP -> subsidy ++ : 门店poiId → 子补贴方案id\n→规则明细+父方案id+UPC白名单\n(走缓存不直查DB【差异D1: 补贴系统必须提供缓存接口】)
+  return 生效报名+出资方案
+  return 报名条件结果
+end
+
+checker -> checker : <font color=red>双条件与判断: 韦恩判定可用 && 报名生效\n<font color=red>韦恩有而补贴无 → 置为不可用券(双保险, 基线§3.3)
+alt <font color=red>无门槛券且可用商品为空
+  checker -> checker : <font color=red>先判报名: 未报名→"仅限XX商家可用...";\n已报名全黑→"加购所有商品均不可用红包"
+end
+checker --> ability : CouponUseAbleInfo(含券-品映射关系, 供§4.2门槛与搭售/查券RPC)
+@enduml

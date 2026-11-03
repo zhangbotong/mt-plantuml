@@ -1,0 +1,41 @@
+@startuml
+skinparam maxMessageWidth 130
+skinparam sequenceMessageAlign toDirection
+skinparam noteBackgroundColor #FFFACD
+
+title 券平台调用 UDS 的两种方式
+
+actor "业务调用方\n(发券/展券/查询链路)" as Client
+participant "UdsThriftIfaceProxy /\nMatrixServiceProxy\n(方式一: 代码中\n直接setTemplateKey调用)" as Proxy
+participant "TspCrowdCheckService\n(precuser SDK 接口)" as SdkService
+participant "TspCrowdExternal4DataServiceImpl\n(SDK内部: udsQuery)" as SdkImpl
+database "Tair\n(模板名配置)" as Tair
+participant "UDS平台\nTspUdsApiThriftService.query()\n(com.sankuai.uds.api4poiaggrinfo)" as UDS
+
+== 方式一: 代码中直接 setTemplateKey 调用（UdsThriftIfaceProxy / MatrixServiceProxy） ==
+
+Client -> Proxy++: getCityInfoByUserId(userId, lat, lng, ip)\n(发券/展券触发)
+Proxy -> Proxy: paramMap.put("userId", ...)
+Proxy -> Proxy: **setTemplateKey("getUserCityInfoV2")**
+Proxy -> UDS++: query(tspUdsApiParam)
+return TspUdsApiResponse
+Proxy -> Proxy: JSON.parseObject(response)\n→ WmOpenCityInfo\n(city_id, parent_city_id,\nphysicalCityOpenStatus ...)
+return WmOpenCityInfo
+
+== 方式二: SDK 动态调用（Tair 配置模板名） ==
+
+Client -> SdkService++: checkCrowdIds(bizCode,\nmpUserInfo, crowdIds)\n(人群圈选查询)
+SdkService -> SdkImpl++: udsQuery(userId, ...)
+SdkImpl -> Tair++: 读取模板名配置
+return templateKey (如 "newUserInformation")
+SdkImpl -> SdkImpl: 构造 TspUdsApiParam\nparamMap，如：userId/uuid/phone
+SdkImpl -> UDS++: query(tspUdsApiParam)
+return TspUdsApiResponse
+SdkImpl -> SdkImpl: 解析 response
+return 人群命中结果
+return CheckCrowdResponse\n(resultMap: crowdId→1/0/-1)
+
+return 业务结果
+return 返回响应
+
+@enduml

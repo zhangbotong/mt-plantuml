@@ -1,0 +1,34 @@
+@startuml
+skinparam maxMessageSize 250
+skinparam sequence {
+  LifeLineBorderColor #AAAAAA
+  LifeLineBackgroundColor #DDDDDD
+}
+
+title 韦恩实时校验流程
+autonumber
+
+participant "UOC前端\n(老红包后台页面)" as FE
+participant "activity.admin\nAdminCouponRestructureController" as CTRL
+participant "AdminCouponRestructureService" as SVC
+participant "WayneSegmentService" as SEG
+participant "韦恩系统\n(tsp.marketing.supply.admin RPC)" as WAYNE
+
+FE -> CTRL++: 入参: activityId, couponTemplateId\n<b><color:#BF360C>【新增】bizLine、行业韦恩id</color></b>
+    CTRL -> SVC++: checkWayneActivity
+        SVC -> SVC: 参数校验\n(activityId/couponTemplateId数字合法性)
+        SVC -> SEG++: getWayneSegmentInfo(activityId)：查韦恩信息
+            SEG -> WAYNE++: getActivityByActivityId
+            return: 韦恩活动数据\n(status/segmentList等)\n<b><color:#BF360C>需新增返回韦恩业务线
+        return
+        SVC -> SVC: 韦恩状态校验
+        SVC -> SVC: 按券模板取需校验数据片类型\nCouponWayenUtils.getWayneSegmentTypeListByCouponTemplateId
+        group <back:#FFE0B2><color:#BF360C>本次改动</color></back>
+            SVC -> SVC: <b><color:#BF360C>【文案调整】bizLine 含外/闪时:</color></b>\n韦恩筛选集须含“商家”\n失败文案:外卖、闪购神券关联的韦恩需包含“商家”筛选集
+            SVC -> SVC: <b><color:#BF360C>【新增】bizLine 含医药时:</color></b>\n韦恩筛选集须含“商品”\n失败文案:医药神券关联的韦恩需包含“商品”筛选集
+            SVC -> SVC: <b><color:#BF360C>【新增】韦恩业务线与券配置业务线校验</color>\n失败文案:韦恩业务类型与适用业务不匹配，请修改
+        end
+        note right of SVC: checkPoiSupply=false\n跳过门店供给校验\n(保存链路=同一方法+供给校验)
+    return
+return
+@enduml

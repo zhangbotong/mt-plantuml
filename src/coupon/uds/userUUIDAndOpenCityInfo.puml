@@ -1,0 +1,73 @@
+@startuml
+title userUUIDAndOpenCityInfo —— 拆分方法与城市信息查询策略链
+
+autonumber
+
+participant "调用方\n(发券/展券链路)" as Caller
+participant "NewService" as U
+participant "Uuid cellar" as CK
+participant "经纬度cellar" as LBSCK
+participant "CLbsThriftService" as LBS
+participant "wmOrder4CCacheThriftService\n(订单缓存)" as Order
+participant "portraitService\n(画像)" as Portrait
+participant "userRetrieveProxy\n(平台用户中心)" as UserCenter
+participant "mobileInfoService" as Mobile
+participant "clbsThriftService\n(getAllOpenCity)" as CityAll
+
+note over U
+  拆分为 2 个方法:
+  1. getUuid(userId) → uuid         从缓存读
+  2. getCityInfo(userId, ip) → 城市信息   策略链(优先级递减,命中即返回)
+end note
+
+== 方法1: 从缓存读 uuid ==
+
+Caller -> U++: getUuid(userId)
+U -> CK++: 读缓存,key=fcs:wm_user_latest_uuid:{userid}
+return uuid
+return uuid
+
+== 方法2: 查城市信息(策略链) ==
+
+Caller -> U++: getCityInfo(userId, ip)
+
+alt 策略1: 入参有经纬度 —— 0%（跳过）
+  U -> LBS++: getOpenCityInfoByLoc(lat, lng)
+  return 城市信息
+else 策略2: Cellar 缓存查经纬度 —— 98.5%
+  U -> LBSCK++: 根据 userId 查经纬度
+  return 经纬度
+  U -> LBS++: getOpenCityInfoByLoc(lat, lng)
+  return 城市信息
+else 策略3: 订单查最后一单经纬度 —— 0.07%
+  U -> Order++: getUserLatestFinishedOrderInfo(userId)
+  return 最后一单信息(含经纬度)
+  U -> LBS++: getOpenCityInfoByLoc(lat, lng)
+  return 城市信息
+else 策略4: 画像查订单最常用经纬度 —— 0.21%
+  U -> Portrait++: getOnePortrait(userId)
+  return 订单最常使用经纬度
+  U -> LBS++: getOpenCityInfoByLoc(lat, lng)
+  return 城市信息
+else 策略5: 根据 ip 调 LBS —— 0.001%
+  U -> LBS++: getCityByLocation(ip)
+  return 城市信息
+else 策略6: 手机号查城市名 —— 1.25%
+  U -> CityAll++: getAllOpenCity() (缓存所有城市信息)
+  return 城市开城信息
+  U -> UserCenter++: getUserMobile(userId)
+  return 手机号
+  U -> Mobile++: getMobileProfileResult(mobile)
+  return 手机号信息（含城市名称）
+  U -> U: 根据手机号信息中的城市名称与之前缓存的所有城市信息匹配的到城市信息
+end
+
+return 城市信息
+
+note over Caller #FFEEDD
+  待决策:
+  1. 缓存直读现在集群还是同步到我们一份?
+  2. 查城市信息是否可简化只取策略2 (其他当查询失败处理)?
+end note
+
+@enduml

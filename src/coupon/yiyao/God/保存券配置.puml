@@ -1,0 +1,31 @@
+@startuml
+skinparam maxMessageSize 250
+skinparam sequence {
+  LifeLineBorderColor #AAAAAA
+  LifeLineBackgroundColor #DDDDDD
+}
+
+title 保存券配置流程（超值联盟×优享红包渠道）
+autonumber
+
+participant "UOC前端\n(老红包后台页面)" as FE
+participant "activity.admin\nAdminCouponRestructureController" as CTRL
+participant "CouponConfigComponent" as COMP
+participant "AdminCouponRestructureService" as SVC
+participant "韦恩系统\n(ActivityThriftService RPC)" as WAYNE
+database "DB" as DB
+
+FE -> CTRL++: 保存券配置
+    CTRL -> CTRL: 前置校验\n(couponConfigId=0、微信、拼好饭、会员专享、基础字段、闪购黑名单、\n指定单一商家条件校验、通用神券一级二级品类和韦恩限制、\n首单限制和韦恩业务类型是否匹配、超值联盟自取神券校验、\n用券协同、韦恩供给、闪购品牌识别、城市相关、\n新美大和渠道商PN号填写、人群、)
+    CTRL -> COMP++: updateSaveAjaxParamValidator
+        COMP -> COMP: <b><color:#BF360C>【新增校验①】业务线必填 & 业务线×券类型×渠道类型匹配\n
+        note right of COMP: 券类型=超值联盟，渠道类型=优享红包渠道（省钱包）：外卖、闪购、医药\n券类型=超值联盟，渠道类型=接口红包、push红包、膨胀渠道：外卖、闪购
+    return
+    CTRL -> SVC++: initCouponConfig→couponConfigInfoCheck
+        SVC -> SVC: <b><color:#BF360C>checkWayneActivity 韦恩校验\n同前端调用校验韦恩（不同点：多校验韦恩供给（已有逻辑））
+        SVC -> SVC: <b><color:#BF360C>黑名单韦恩ID:Lion取值落库(前端不传入)</color></b>
+        SVC -> DB++: 保存DB\n<b><color:#BF360C>【新增】coupon_attributes:bizLine、yyForbiddenSku、行业韦恩、行业黑名单韦恩\n use_conditions:bizWayneInfo</color>\n<color:#9E9E9E>(use_config/audit表同步)</color>
+        return
+    return
+return
+@enduml

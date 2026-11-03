@@ -1,0 +1,47 @@
+@startuml
+title 图4-2a 【用券-2】门槛计算(现状主干粗略+医药改动详细, 红色=新增/改动)
+participant "医药交易/上游" as trade
+participant "AbstractOrderInfoTranslator\n(getOrderPrice :650-673)" as trans
+participant "DefaultCouponUseAbleChecker\n(doBasicCheck :1375-1752)" as checker
+participant "韦恩判定Provider\n(图4-1)" as wayne
+participant "CouponAmountCalculate路由\n(神券均落DefaultCouponAmountCalculate)" as route
+participant "AbstractCouponAmountCalculate\n【改动点①selectOrderSkuForSill】\n(sdk_available :85)" as absCalc
+participant "SDKAbstractCouponAmountCalculate\n【改动点②calcOrderSillAmountInfo】\n(sdk_calculate :82)" as sdkCalc
+participant "MedicineSdkRedPakageCouponAmountCalculate\n(calcSelectSkuSillAmountInfo :65-73\n医药选品红包门槛先例)" as medPrev
+participant "CouponCanUseValidator\n(门槛校验, sdk)" as validator
+
+group 现状主干(不改动, 粗略)
+trade -> trans ++ : 订单翻译
+return UseCouponOrder(sillOrderPrice上游透传)
+checker -> wayne ++ : 韦恩判定(图4-1: 路由选韦恩→判定)
+return 可用SKU集合
+checker -> route ++ : getRealCouponAmountCalculate()\n路由事实: LogicId无WAYNE_HAODIAN_COUPON项\n神券(外闪/医药)均落DefaultCouponAmountCalculate兜底\nmedicine包实现类只承接红包/商品券等, 神券不经过
+route --> checker : DefaultCouponAmountCalculate实例\n<font color=red>继承链: Default(sdk_available:16)\n→AbstractCouponAmountCalculate(sdk_available:61)\n→SDKAbstractCouponAmountCalculate(sdk_calculate:70)
+end
+
+group 本次改动①(详细): 选品与门槛加总(改继承链上的现有类)
+checker -> absCalc ++ : selectOrderSkuForSill(core:1449)
+absCalc -> absCalc : <font color=red>【改动点①: AbstractCouponAmountCalculate#selectOrderSkuForSill\nsdk_available模块:85, 已有医药分支:97-108\n(isCommonUseRealPayCoupon/动态红包+blockSku→getMedicineCanChoosedGoods)】\n<font color=red>扩展该分支识别医药神券:\n可用商品=订单商品 ∩ 韦恩判定返回的可用SKU集合\n(韦恩正向结果差集转blockSku, 复用现有"全部商品-blockSku"减法机制)
+return UseCouponSelectSkuInfo(选品结果)
+checker -> sdkCalc ++ : calcOrderSillAmountInfo(core:1497)
+sdkCalc -> medPrev : <font color=red>【现成同构先例】医药选品红包门槛\nMedicineSdkRedPakage#calcSelectSkuSillAmountInfo\n对selectOrderSku逐sku累加TotalRemainPrice, 空集合返回0
+sdkCalc -> sdkCalc : <font color=red>【改动点②: SDKAbstractCouponAmountCalculate\n#calcOrderSillAmountInfo (sdk_calculate模块:82,\nDefault/Abstract均未覆写, 神券实际执行处)】\n新增医药神券分支: 对选品结果集合求和\n<font color=red>剔除打包费、配送费【新增口径】\n(口径需确认TotalRemainPrice是否已剔除打包费,\n不满足则在字段层处理)\nLion开关 sill.exclude.packingfee 控制(可回滚)
+alt 原价门槛
+  sdkCalc -> sdkCalc : 可用商品现价加总\n(含尾差兜底, 复用现有算法框架)
+else 实付门槛
+  sdkCalc -> sdkCalc : <font color=red>可用商品(原价x折扣-分摊到商品的所有优惠)加总\n商品活动/商品券/新客直补/门店新客立减按价格比例分摊\n<font color=red>口径判定复用Default.isRealCostSillLimit委托\n(CouponUtil:938, 不新增)
+end
+sdkCalc -> sdkCalc : <font color=red>3. getCouponCanDiscountAmount 抵扣计算\n券可抵扣金额=面额与门槛运算\n只抵扣可用商品, 不抵打包费/配送费
+return 门槛金额+可抵扣金额
+note right of sdkCalc : <font color=red>与外闪神券同路径(Default继承链), 改动必须:\n1.Lion开关 medicine.shenquan.enable 控制\n2.开关关闭走原逻辑, 不影响外闪存量
+end
+
+group 现状框架(不改动) + 本次改动②(详细): 门槛校验与文案
+checker -> validator ++ : validCouponSillAmount(现状框架不动)
+return 校验结果
+alt <font color=red>不满足门槛
+  checker -> checker : <font color=red>新增医药不可用文案:\n原价门槛→"可用商品现价需满X元,当前已满Y元"\n实付门槛→"可用商品现价-所有优惠需满X元,当前已满Y元"
+end
+checker --> trade : CouponUseAbleInfo
+end
+@enduml

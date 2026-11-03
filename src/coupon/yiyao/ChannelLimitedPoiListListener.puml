@@ -16,7 +16,7 @@ return
 C -> W++: 查渠道下有效券的发放条件缓存（getByChannelId）
 return
 
-opt 若渠道下没有有效券配置了多门店新老客发放条件(targetUserType != 1)
+opt 若渠道下没有有效券配置了多门店新老客发放条件(含targetUserType字段)
     note over C: 跳过刷新，结束
 end
 

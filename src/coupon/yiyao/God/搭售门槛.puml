@@ -1,0 +1,26 @@
+@startuml
+title 图4-3 【用券-2】搭售精筛·实付门槛RPC(基线§3.6方案1, 红色=券侧新增)
+participant "订单/AP搭售" as order
+participant "神券搭售组\n(许伦祥/孟德坤)" as member
+participant "券平台core\n<font color=red>新RPC: calcCouponSillForSkus" as core
+participant "优惠算价\n(商智栋)" as calc
+
+== 流程1: 召回+可用性判定(一/二层合并, 基线方案1) ==
+order -> member ++ : 召回搭售券包
+member -> core ++ : <font color=red>供给可用性判定(§4.1, 下沉券平台)
+return <font color=red>券-品映射关系(并行吃掉券查品耗时)
+return 搭售券包(粗筛)
+
+== 流程2: 优惠算价(与流程1无依赖, 可并行) ==
+order -> calc ++ : 订单价格计算
+return <font color=red>用神券前价格快照
+
+== 流程3: 精筛(医药流量 jar→RPC, 基线方案1) ==
+order -> member ++ : 精筛(券包+价格快照+券品映射)
+member -> core ++ : calcCouponSillForSkus(券列表+券品映射+价格快照)
+note right : <font color=red>【差异D8·待讨论】硬约束:\n1.幂等纯计算(无状态副作用)\n2.支持并行调用吃RT\n(订单侧tp99并行预算60ms)
+core -> core : <font color=red>复用§4.2.1同一套选品门槛逻辑\n(与预用/推荐口径一致)
+return 每张神券实付门槛
+member -> member : 门槛过滤(不再用整单门槛)
+return 精筛后搭售券包
+@enduml

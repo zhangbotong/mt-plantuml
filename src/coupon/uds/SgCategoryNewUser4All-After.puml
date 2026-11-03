@@ -1,0 +1,51 @@
+@startuml
+title SgCategoryNewUser4All —— 闪购商家品类新客查询
+
+autonumber
+
+participant "调用方\n(发券/导购/查券链路)" as Caller
+participant "NewService" as S
+participant "userRetrieve\n(com.sankuai.wpt.user.retrieve)" as UserCenter
+participant "uuid cellar\n(缓存)" as UuidCK
+participant "TspKalaNewUserProxy\n(kela代理)" as KelaProxy
+participant "TspKelaNewUserService\n(kela)" as Kela
+
+note over S
+  内部逻辑:
+  1. 补全 phone 和 uuid
+  2. 调 kela 查询新客类型
+  3. 处理返回值,取 Map<NewUserType, Boolean>
+end note
+
+Caller -> S++: querySgCategoryNewUser(userId, phone, uuid, newUserTypeSet)
+
+== 步骤1: 补全 phone 和 uuid ==
+
+alt phone 为空 —— 查询用户手机号
+  S -> UserCenter++: RpcUserRetrieveService.getUserByIdWithMsg(userId)
+  note right: appkey: com.sankuai.wpt.user.retrieve\n超时: 200ms
+  return phone
+end
+
+alt uuid 为空 —— cellar 查 uuid
+  S -> UuidCK++: 读缓存查 uuid
+  return uuid
+end
+
+== 步骤2: 调 kela 查询新客类型 ==
+
+S -> KelaProxy++: getUserFirstOrder(userId, phone, uuid, newUserTypeSet)
+note right: 参考调 c.coupon/guide TspKalaNewUserProxy#getUserFirstOrder调用方式
+
+KelaProxy -> Kela++: queryMultipleNewUser(...)
+note right: 业务线新客、门店新客、闪购商家品类新客\n均调用此接口\n超时: 200ms
+return Map<NewUserType, Boolean>
+return Map<NewUserType, Boolean>
+
+== 步骤3: 处理返回值 ==
+
+S -> S: 处理返回值,取 newUserResult\nkey=新客类型, value=是否新客
+
+return Map<NewUserType, Boolean>
+
+@enduml

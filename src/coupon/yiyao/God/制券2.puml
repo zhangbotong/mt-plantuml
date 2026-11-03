@@ -1,0 +1,51 @@
+@startuml
+skinparam maxMessageSize 200
+skinparam sequence {
+  LifeLineBorderColor #AAAAAA
+  LifeLineBackgroundColor #DDDDDD
+}
+
+title 医药神券配置端交互链路（券平台配置服务视角）
+autonumber
+
+actor "运营" as Operator
+participant "UOC前端\n(老红包后台页面)" as UocFe
+participant "融合前端\n(一体化制券平台页面)" as NewFe
+participant "activity.admin\n(老红包后台服务)" as Uoc
+participant "managebiz.admin\n(融合建券服务)" as New
+participant "yunying.admin\n(韦恩系统BFF,配合需求)" as Wayne
+participant "券平台核心服务\n(配置存储/C端下发)" as Coupon
+participant "Peng/膨胀后台" as Peng
+participant "神券包M端\n(神券组B端)" as Pack
+
+== 制券（省钱包） ==
+Operator -> UocFe++: 创建/编辑省钱包
+    UocFe -> Uoc++: detailCouponAjax 建券页初始化
+    return
+    UocFe -> Wayne++: 韦恩搜索+选中后校验\n搜索:业务线过滤\n校验：业务线、筛选集
+    return
+    UocFe -> UocFe: 运营填写内容
+    UocFe -> Uoc++: updateSaveAjax 保存券配置
+        Uoc -> Uoc: 保存校验\n1、券类型+渠道类型+业务线匹配\n 2、韦恩筛选集与业务线
+        Uoc -> Uoc: use_conditions 落库\n(bizWayneId前端透传,\nbizWayneBlackId保存时读Lion)
+        Uoc -> New++: 增量双写新平台\n(AdminClcCouponConfigService\n→createCouponConfigDraft)
+        return
+    return
+return
+
+== 制券（医药膨前/膨后券） ==
+Operator -> NewFe++: 创建医药神券(膨前/膨后)
+    NewFe -> New++: loadConfig/preValid/save/publish
+    New -> New: 保存校验\n(医药单行业拦截/后台备注必填/\n业务类型匹配)
+    New -> New: use_rules 落库\n(bizWayneId+medProductBlackListSwitch,\nbusiness_coupon_config新增医药行业行)
+    New -> Coupon++: 发布后回写老库\n(sync-kit+TspCouponConfigAdapter)
+    return
+    return
+return
+
+== 下游消费 ==
+Pack -> Coupon++: 券包M端配置/保存券包时\n拉取券配置最新信息
+return
+Coupon --> Pack: 券配置变更实时流通知
+note right: 神券包M端为券配置消费方\n需确认新枚举/新增key的解析兼容
+@enduml

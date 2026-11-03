@@ -1,0 +1,34 @@
+@startuml
+title 医药神券·预用链路（改造后）
+participant "医药交易" as trade
+participant "trade_api/c.couponyiyao<br/>(外壳)" as shell
+participant "coupon.core<br/>UseCouponAbility" as ability
+participant "Checker<br/>(条件Provider族)" as checker
+participant "DataC/韦恩<br/>opencore" as datac
+participant "融合补贴系统<br/>subsidydms缓存" as subsidy
+participant "ChargeShareCalculate<br/>(成本分摊)" as charge
+
+trade -> shell ++ : useCouponPreview(订单+券+sku列表)
+shell -> ability ++ : 转发(core)
+ability -> ability : 定位业务线 MEDICINE(bizId=medicine)
+ability -> checker ++ : checkCouponCanUse
+checker -> checker : 基础校验(时间/手机号/状态/业务线/互斥)
+checker -> datac ++ : <font color=red>行业韦恩判定(门店×UPC, 医药scene)
+return 可用商品集合(白-黑后)
+checker -> subsidy ++ : <font color=red>UPC+门店 报名数据校验(子活动关联招商)
+return 生效报名+出资方案
+checker -> checker : <font color=red>医药门槛计算(可用商品原价/实付,不含打包配送费)
+checker -> checker : <font color=red>抵扣金额=面额与门槛运算(只抵可用商品)
+return CouponUseAbleInfo
+alt useCouponSubmit(核销)
+ability -> charge ++ : getUseChargeBearInfo(biz=MEDICINE路由)
+charge -> subsidy ++ : <font color=red>按UPC查出资方案集合
+return 方案列表
+charge -> charge : <font color=red>每商品: 商补=min(抵扣×比例,最高商补) 择优(出资高>报名晚)
+charge -> charge : <font color=red>美补分摊承担方/PN → charge_an_list(龙门)
+return UseChargeBearInfo
+ability -> ability : insertUseRecord + 神券活动库存/预算扣减
+end
+return 预用/核销结果(含分摊明细)
+return 透传上游(结算/龙门记账)
+@enduml
